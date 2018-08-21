@@ -1014,6 +1014,42 @@ namespace SharpUp
             return System.Text.UnicodeEncoding.Unicode.GetString(outBlock);
         }
 
+        public static void GetRegAutoLogon()
+        {
+            try
+            {
+                Console.WriteLine("\r\n\r\n=== Registry AutoLogon ===\r\n");
+
+                string AutoAdminLogon = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "AutoAdminLogon");
+
+                if (AutoAdminLogon.Equals("1"))
+                {
+                    Console.WriteLine("Registry AutoLogon Found\r\n");
+                    string DefaultDomainName = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName");
+                    string DefaultUserName = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName");
+                    string DefaultPassword = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword");
+                    string AltDefaultDomainName = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "AltDefaultDomainName");
+                    string AltDefaultUserName = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "AltDefaultUserName");
+                    string AltDefaultPassword = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "AltDefaultPassword");
+
+                    if (!DefaultUserName.Equals("") || !AltDefaultUserName.Equals(""))
+                    {
+                        Console.WriteLine("DefaultDomainName: {0}", DefaultDomainName);
+                        Console.WriteLine("DefaultUserName: {0}", DefaultUserName);
+                        Console.WriteLine("DefaultPassword: {0}", DefaultPassword);
+                        Console.WriteLine("AltDefaultDomainName: {0}", AltDefaultDomainName);
+                        Console.WriteLine("AltDefaultUserName: {0}", AltDefaultUserName);
+                        Console.WriteLine("AltDefaultPassword: {0}", AltDefaultPassword);
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(String.Format("  [X] Exception: {0}", ex.Message));
+            }
+        }
+
         public static void PrivescChecks()
         {
             bool isHighIntegrity = IsHighIntegrity();
@@ -1038,6 +1074,7 @@ namespace SharpUp
                 GetUnattendedInstallFiles();
                 GetMcAfeeSitelistFiles();
                 GetCachedGPPPassword();
+                GetRegAutoLogon();
             }
         }
 
