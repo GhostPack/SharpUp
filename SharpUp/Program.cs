@@ -1014,40 +1014,58 @@ namespace SharpUp
             return System.Text.UnicodeEncoding.Unicode.GetString(outBlock);
         }
 
-        public static void PrivescChecks()
+        public static void PrivescChecks(bool auditMode)
         {
             bool isHighIntegrity = IsHighIntegrity();
             bool isLocalAdmin = IsLocalAdmin();
+            bool shouldQuit = false;
 
-            if (IsHighIntegrity())
+            if (isHighIntegrity)
             {
                 Console.WriteLine("\r\n[*] Already in high integrity, no need to privesc!");
+                shouldQuit = true;
             }
             else if (!isHighIntegrity && isLocalAdmin)
             {
                 Console.WriteLine("\r\n[*] In medium integrity but user is a local administrator- UAC can be bypassed.");
+                shouldQuit = true;
             }
-            else
+
+            // if already admin we can quit without running all checks
+            if (shouldQuit)
             {
-                GetModifiableServices();
-                GetModifiableServiceBinaries();
-                GetAlwaysInstallElevated();
-                GetPathHijacks();
-                GetModifiableRegistryAutoRuns();
-                GetSpecialTokenGroupPrivs();
-                GetUnattendedInstallFiles();
-                GetMcAfeeSitelistFiles();
-                GetCachedGPPPassword();
+                if (!auditMode)
+                {
+                    Console.WriteLine("\r\n[*] Quitting now, re-run with \"audit\" argument to run all checks anyway (audit mode).");
+                    return;
+                }
+                else
+                {
+                    // except if auditMode has explictly been asked
+                    Console.WriteLine("\r\n[*] Audit mode: running all checks anyway.");
+                }
             }
+
+            GetModifiableServices();
+            GetModifiableServiceBinaries();
+            GetAlwaysInstallElevated();
+            GetPathHijacks();
+            GetModifiableRegistryAutoRuns();
+            GetSpecialTokenGroupPrivs();
+            GetUnattendedInstallFiles();
+            GetMcAfeeSitelistFiles();
+            GetCachedGPPPassword();
         }
 
         static void Main(string[] args)
         {
+            bool auditMode = args.Contains("audit", StringComparer.CurrentCultureIgnoreCase);
+
             var watch = System.Diagnostics.Stopwatch.StartNew();
 
             Console.WriteLine("\r\n=== SharpUp: Running Privilege Escalation Checks ===");
 
-            PrivescChecks();
+            PrivescChecks(auditMode);
 
             watch.Stop();
             Console.WriteLine(String.Format("\r\n\r\n[*] Completed Privesc Checks in {0} seconds\r\n", watch.ElapsedMilliseconds / 1000));
