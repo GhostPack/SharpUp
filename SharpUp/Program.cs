@@ -1019,6 +1019,291 @@ namespace SharpUp
             return System.Text.UnicodeEncoding.Unicode.GetString(outBlock);
         }
 
+        public static void GetRegAutoLogon()
+        {
+            try
+            {
+                Console.WriteLine("\r\n\r\n=== Registry AutoLogon ===\r\n");
+
+                string AutoAdminLogon = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "AutoAdminLogon");
+
+                if (AutoAdminLogon.Equals("1"))
+                {
+                    Console.WriteLine("Registry AutoLogon Found\r\n");
+                    string DefaultDomainName = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultDomainName");
+                    string DefaultUserName = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultUserName");
+                    string DefaultPassword = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "DefaultPassword");
+                    string AltDefaultDomainName = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "AltDefaultDomainName");
+                    string AltDefaultUserName = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "AltDefaultUserName");
+                    string AltDefaultPassword = GetRegValue("HKLM", "Software\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon", "AltDefaultPassword");
+
+                    if (!DefaultUserName.Equals("") || !AltDefaultUserName.Equals(""))
+                    {
+                        Console.WriteLine("DefaultDomainName: {0}", DefaultDomainName);
+                        Console.WriteLine("DefaultUserName: {0}", DefaultUserName);
+                        Console.WriteLine("DefaultPassword: {0}", DefaultPassword);
+                        Console.WriteLine("AltDefaultDomainName: {0}", AltDefaultDomainName);
+                        Console.WriteLine("AltDefaultUserName: {0}", AltDefaultUserName);
+                        Console.WriteLine("AltDefaultPassword: {0}", AltDefaultPassword);
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(String.Format("  [X] Exception: {0}", ex.Message));
+            }
+        }
+
+
+        public static void GetGPPPassword()
+        {
+            try
+            {
+                Console.WriteLine("\r\n\r\n=== GPP Password from SYSVOL ===\r\n");
+                string DNSDomain = System.Environment.GetEnvironmentVariable("USERDNSDOMAIN");
+
+                if (DNSDomain.Length > 1)
+                {
+                    List<String> files = FindFiles("\\\\" + DNSDomain + "\\SYSVOL", "*.xml");
+
+                    // files will contain 
+                    foreach (string file in files)
+                    {
+                        //Console.WriteLine("\r\n{0}", file);
+                        if (file.Contains("Registry.xml") || file.Contains("Groups.xml") || file.Contains("Services.xml") || file.Contains("ScheduledTasks.xml") || file.Contains("DataSources.xml") || file.Contains("Printers.xml") || file.Contains("Drives.xml"))
+                        {
+                            XmlDocument xmlDoc = new XmlDocument();
+                            xmlDoc.Load(file);
+
+                            //Console.WriteLine("\r\n{0}", xmlDoc.InnerXml);
+
+                            string cPassword = "";
+                            string UserName = "";
+                            string NewName = "";
+                            string Changed = "";
+
+                            if (xmlDoc.InnerXml.Contains("cpassword"))
+                            {
+                                Console.WriteLine("\r\n{0}", file);
+                                if (file.Contains("Groups.xml"))
+                                {
+                                    XmlNode a = xmlDoc.SelectSingleNode("/Groups/User/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/Groups/User");
+                                    foreach (XmlAttribute attr in a.Attributes)
+                                    {
+                                        if (attr.Name.Equals("cpassword"))
+                                        {
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("userName"))
+                                        {
+                                            UserName = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("newName"))
+                                        {
+                                            NewName = attr.Value;
+                                        }
+                                    }
+                                    foreach (XmlAttribute attr in b.Attributes)
+                                    {
+                                        if (attr.Name.Equals("changed"))
+                                        {
+                                            Changed = attr.Value;
+                                        }
+                                    }
+                                    //Console.WriteLine("\r\nA{0}", a.Attributes[0].Value);
+                                }
+                                else if (file.Contains("Services.xml"))
+                                {
+                                    XmlNode a = xmlDoc.SelectSingleNode("/NTServices/NTService/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/NTServices/NTService");
+                                    foreach (XmlAttribute attr in a.Attributes)
+                                    {
+                                        if (attr.Name.Equals("cpassword"))
+                                        {
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("accountName"))
+                                        {
+                                            UserName = attr.Value;
+                                        }
+                                    }
+                                    foreach (XmlAttribute attr in b.Attributes)
+                                    {
+                                        if (attr.Name.Equals("changed"))
+                                        {
+                                            Changed = attr.Value;
+                                        }
+                                    }
+
+                                }
+                                else if (file.Contains("ScheduledTasks.xml"))
+                                {
+                                    XmlNode a = xmlDoc.SelectSingleNode("/ScheduledTasks/Task/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/ScheduledTasks/Task");
+                                    foreach (XmlAttribute attr in a.Attributes)
+                                    {
+                                        if (attr.Name.Equals("cpassword"))
+                                        {
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("runAs"))
+                                        {
+                                            UserName = attr.Value;
+                                        }
+                                    }
+                                    foreach (XmlAttribute attr in b.Attributes)
+                                    {
+                                        if (attr.Name.Equals("changed"))
+                                        {
+                                            Changed = attr.Value;
+                                        }
+                                    }
+
+                                }
+                                else if (file.Contains("DataSources.xml"))
+                                {
+                                    XmlNode a = xmlDoc.SelectSingleNode("/DataSources/DataSource/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/DataSources/DataSource");
+                                    foreach (XmlAttribute attr in a.Attributes)
+                                    {
+                                        if (attr.Name.Equals("cpassword"))
+                                        {
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("username"))
+                                        {
+                                            UserName = attr.Value;
+                                        }
+                                    }
+                                    foreach (XmlAttribute attr in b.Attributes)
+                                    {
+                                        if (attr.Name.Equals("changed"))
+                                        {
+                                            Changed = attr.Value;
+                                        }
+                                    }
+                                }
+                                else if (file.Contains("Printers.xml"))
+                                {
+                                    XmlNode a = xmlDoc.SelectSingleNode("/Printers/SharedPrinter/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/Printers/SharedPrinter");
+                                    foreach (XmlAttribute attr in a.Attributes)
+                                    {
+                                        if (attr.Name.Equals("cpassword"))
+                                        {
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("username"))
+                                        {
+                                            UserName = attr.Value;
+                                        }
+                                    }
+                                    foreach (XmlAttribute attr in b.Attributes)
+                                    {
+                                        if (attr.Name.Equals("changed"))
+                                        {
+                                            Changed = attr.Value;
+                                        }
+                                    }
+                                }
+                                else if (file.Contains("Registry.xml"))
+                                {
+                                    XmlNodeList a = xmlDoc.GetElementsByTagName("Properties");
+
+                                    foreach (XmlNode b in a)
+                                    {
+                                        if (b.Name.Equals("DefaultPassword"))
+                                        {
+                                            cPassword += "," + b.Value;
+                                        }
+                                        if (b.Name.Equals("DefaultUsername"))
+                                        {
+                                            UserName += "," + b.Value;
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    // Drives.xml
+                                    XmlNode a = xmlDoc.SelectSingleNode("/Drives/Drive/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/Drives/Drive");
+                                    foreach (XmlAttribute attr in a.Attributes)
+                                    {
+                                        if (attr.Name.Equals("cpassword"))
+                                        {
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("username"))
+                                        {
+                                            UserName = attr.Value;
+                                        }
+                                    }
+                                    foreach (XmlAttribute attr in b.Attributes)
+                                    {
+                                        if (attr.Name.Equals("changed"))
+                                        {
+                                            Changed = attr.Value;
+                                        }
+                                    }
+
+                                }
+
+                                if (UserName.Equals(""))
+                                {
+                                    UserName = "[BLANK]";
+                                }
+
+                                if (NewName.Equals(""))
+                                {
+                                    NewName = "[BLANK]";
+                                }
+
+
+                                if (cPassword.Equals(""))
+                                {
+                                    cPassword = "[BLANK]";
+                                }
+                                else
+                                {
+                                    if (!file.Contains("Registry.xml"))
+                                    {
+                                        cPassword = DecryptGPP(cPassword);
+                                    }
+                                }
+
+                                if (Changed.Equals(""))
+                                {
+                                    Changed = "[BLANK]";
+                                }
+
+
+                                Console.WriteLine("UserName: {0}", UserName);
+                                Console.WriteLine("NewName: {0}", NewName);
+                                Console.WriteLine("cPassword: {0}", cPassword);
+                                Console.WriteLine("Changed: {0}", Changed);
+                            }
+
+
+                        }
+                    }
+
+                }
+                else
+                {
+                    Console.WriteLine("  [X] Error: Machine is not a domain member or User is not a member of the domain.");
+                }
+
+
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(String.Format("  [X] Exception: {0}", ex.Message));
+            }
+        }
+
         public static void PrivescChecks(bool auditMode)
         {
             bool isHighIntegrity = IsHighIntegrity();
@@ -1060,6 +1345,9 @@ namespace SharpUp
             GetUnattendedInstallFiles();
             GetMcAfeeSitelistFiles();
             GetCachedGPPPassword();
+            GetRegAutoLogon();
+            GetGPPPassword();
+            
         }
 
         static void Main(string[] args)
