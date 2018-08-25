@@ -415,23 +415,25 @@ namespace SharpUp
         public static List<string> FindFiles(string path, string patterns)
         {
             // finds files matching one or more patterns under a given path, recursive
-            //      pattern: "*pass*;*.png;"
             // adapted from http://csharphelper.com/blog/2015/06/find-files-that-match-multiple-patterns-in-c/
-
-            string[] pattern_array = patterns.Split(';');
+            //      pattern: "*pass*;*.png;"
 
             var files = new List<string>();
-            foreach (string pattern in pattern_array)
+
+            try
             {
-                try
+                // search every pattern in this directory's files
+                foreach (string pattern in patterns.Split(';'))
                 {
                     files.AddRange(Directory.GetFiles(path, pattern, SearchOption.TopDirectoryOnly));
-                    foreach (var directory in Directory.GetDirectories(path))
-                        files.AddRange(FindFiles(directory, pattern));
                 }
-                catch (UnauthorizedAccessException) { }
-                catch (PathTooLongException) { }
+
+                // go recurse in all sub-directories
+                foreach (var directory in Directory.GetDirectories(path))
+                    files.AddRange(FindFiles(directory, patterns));
             }
+            catch (UnauthorizedAccessException) { }
+            catch (PathTooLongException) { }
 
             return files;
         }
