@@ -415,23 +415,25 @@ namespace SharpUp
         public static List<string> FindFiles(string path, string patterns)
         {
             // finds files matching one or more patterns under a given path, recursive
-            //      pattern: "*pass*;*.png;"
             // adapted from http://csharphelper.com/blog/2015/06/find-files-that-match-multiple-patterns-in-c/
-
-            string[] pattern_array = patterns.Split(';');
+            //      pattern: "*pass*;*.png;"
 
             var files = new List<string>();
-            foreach (string pattern in pattern_array)
+
+            try
             {
-                try
+                // search every pattern in this directory's files
+                foreach (string pattern in patterns.Split(';'))
                 {
                     files.AddRange(Directory.GetFiles(path, pattern, SearchOption.TopDirectoryOnly));
-                    foreach (var directory in Directory.GetDirectories(path))
-                        files.AddRange(FindFiles(directory, pattern));
                 }
-                catch (UnauthorizedAccessException) { }
-                catch (PathTooLongException) { }
+
+                // go recurse in all sub-directories
+                foreach (var directory in Directory.GetDirectories(path))
+                    files.AddRange(FindFiles(directory, patterns));
             }
+            catch (UnauthorizedAccessException) { }
+            catch (PathTooLongException) { }
 
             return files;
         }
@@ -763,233 +765,217 @@ namespace SharpUp
 
                 if (!allUsers.Contains("ProgramData"))
                 {
+                    // Before Windows Vista, the default value of AllUsersProfile was "C:\Documents and Settings\All Users"
+                    // And after, "C:\ProgramData"
                     allUsers += "\\Application Data";
                 }
+                allUsers += "\\Microsoft\\Group Policy\\History"; // look only in the GPO cache folder
 
                 List<String> files = FindFiles(allUsers, "*.xml");
 
-                // files will contain 
-                foreach (string file in files) {
-                    //Console.WriteLine("\r\n{0}", file);
-                    if (file.Contains("Registry.xml") || file.Contains("Groups.xml") || file.Contains("Services.xml") || file.Contains("ScheduledTasks.xml") || file.Contains("DataSources.xml") || file.Contains("Printers.xml") || file.Contains("Drives.xml"))
+                // files will contain all XML files
+                foreach (string file in files)
+                {
+                    if (!(file.Contains("Groups.xml") || file.Contains("Services.xml")
+                        || file.Contains("Scheduledtasks.xml") || file.Contains("DataSources.xml")
+                        || file.Contains("Printers.xml") || file.Contains("Drives.xml")))
                     {
-                        XmlDocument xmlDoc = new XmlDocument();
-                        xmlDoc.Load(file);
+                        continue; // uninteresting XML files, move to next
+                    }
 
-                        //Console.WriteLine("\r\n{0}", xmlDoc.InnerXml);
+                    XmlDocument xmlDoc = new XmlDocument();
+                    xmlDoc.Load(file);
 
-                        string cPassword = "";
-                        string UserName = "";
-                        string NewName = "";
-                        string Changed = "";
+                    if (!xmlDoc.InnerXml.Contains("cpassword"))
+                    {
+                        continue; // no "cpassword" => no interesting content, move to next
+                    }
 
-                        if (xmlDoc.InnerXml.Contains("cpassword"))
+                    Console.WriteLine("\r\n{0}", file);
+
+                    string cPassword = "";
+                    string UserName = "";
+                    string NewName = "";
+                    string Changed = "";
+                    if (file.Contains("Groups.xml"))
+                    {
+                        XmlNode a = xmlDoc.SelectSingleNode("/Groups/User/Properties");
+                        XmlNode b = xmlDoc.SelectSingleNode("/Groups/User");
+                        foreach (XmlAttribute attr in a.Attributes)
                         {
-                            Console.WriteLine("\r\n{0}", file);
-                            if (file.Contains("Groups.xml"))
+                            if (attr.Name.Equals("cpassword"))
                             {
-                                XmlNode a = xmlDoc.SelectSingleNode("/Groups/User/Properties");
-                                XmlNode b = xmlDoc.SelectSingleNode("/Groups/User");
-                                foreach (XmlAttribute attr in a.Attributes)
-                                {
-                                    if (attr.Name.Equals("cpassword"))
-                                    {
-                                        cPassword = attr.Value;
-                                    }
-                                    if (attr.Name.Equals("userName"))
-                                    {
-                                        UserName = attr.Value;
-                                    }
-                                    if (attr.Name.Equals("newName"))
-                                    {
-                                        NewName = attr.Value;
-                                    }
-                                }
-                                foreach (XmlAttribute attr in b.Attributes)
-                                {
-                                    if (attr.Name.Equals("changed"))
-                                    {
-                                        Changed = attr.Value;
-                                    }
-                                }
-                                //Console.WriteLine("\r\nA{0}", a.Attributes[0].Value);
+                                cPassword = attr.Value;
                             }
-                            else if (file.Contains("Services.xml"))
+                            if (attr.Name.Equals("userName"))
                             {
-                                XmlNode a = xmlDoc.SelectSingleNode("/NTServices/NTService/Properties");
-                                XmlNode b = xmlDoc.SelectSingleNode("/NTServices/NTService");
-                                foreach (XmlAttribute attr in a.Attributes)
-                                {
-                                    if (attr.Name.Equals("cpassword"))
-                                    {
-                                        cPassword = attr.Value;
-                                    }
-                                    if (attr.Name.Equals("accountName"))
-                                    {
-                                        UserName = attr.Value;
-                                    }
-                                }
-                                foreach (XmlAttribute attr in b.Attributes)
-                                {
-                                    if (attr.Name.Equals("changed"))
-                                    {
-                                        Changed = attr.Value;
-                                    }
-                                }
-
+                                UserName = attr.Value;
                             }
-                            else if (file.Contains("ScheduledTasks.xml"))
+                            if (attr.Name.Equals("newName"))
                             {
-                                XmlNode a = xmlDoc.SelectSingleNode("/ScheduledTasks/Task/Properties");
-                                XmlNode b = xmlDoc.SelectSingleNode("/ScheduledTasks/Task");
-                                foreach (XmlAttribute attr in a.Attributes)
-                                {
-                                    if (attr.Name.Equals("cpassword"))
-                                    {
-                                        cPassword = attr.Value;
-                                    }
-                                    if (attr.Name.Equals("runAs"))
-                                    {
-                                        UserName = attr.Value;
-                                    }
-                                }
-                                foreach (XmlAttribute attr in b.Attributes)
-                                {
-                                    if (attr.Name.Equals("changed"))
-                                    {
-                                        Changed = attr.Value;
-                                    }
-                                }
-
+                                NewName = attr.Value;
                             }
-                            else if (file.Contains("DataSources.xml")) {
-                                XmlNode a = xmlDoc.SelectSingleNode("/DataSources/DataSource/Properties");
-                                XmlNode b = xmlDoc.SelectSingleNode("/DataSources/DataSource");
-                                foreach (XmlAttribute attr in a.Attributes)
-                                {
-                                    if (attr.Name.Equals("cpassword"))
-                                    {
-                                        cPassword = attr.Value;
-                                    }
-                                    if (attr.Name.Equals("username"))
-                                    {
-                                        UserName = attr.Value;
-                                    }
-                                }
-                                foreach (XmlAttribute attr in b.Attributes)
-                                {
-                                    if (attr.Name.Equals("changed"))
-                                    {
-                                        Changed = attr.Value;
-                                    }
-                                }
-                            }
-                            else if (file.Contains("Printers.xml"))
+                        }
+                        foreach (XmlAttribute attr in b.Attributes)
+                        {
+                            if (attr.Name.Equals("changed"))
                             {
-                                XmlNode a = xmlDoc.SelectSingleNode("/Printers/SharedPrinter/Properties");
-                                XmlNode b = xmlDoc.SelectSingleNode("/Printers/SharedPrinter");
-                                foreach (XmlAttribute attr in a.Attributes)
-                                {
-                                    if (attr.Name.Equals("cpassword"))
-                                    {
-                                        cPassword = attr.Value;
-                                    }
-                                    if (attr.Name.Equals("username"))
-                                    {
-                                        UserName = attr.Value;
-                                    }
-                                }
-                                foreach (XmlAttribute attr in b.Attributes)
-                                {
-                                    if (attr.Name.Equals("changed"))
-                                    {
-                                        Changed = attr.Value;
-                                    }
-                                }
+                                Changed = attr.Value;
                             }
-                            else if (file.Contains("Registry.xml"))
+                        }
+                        //Console.WriteLine("\r\nA{0}", a.Attributes[0].Value);
+                    }
+                    else if (file.Contains("Services.xml"))
+                    {
+                        XmlNode a = xmlDoc.SelectSingleNode("/NTServices/NTService/Properties");
+                        XmlNode b = xmlDoc.SelectSingleNode("/NTServices/NTService");
+                        foreach (XmlAttribute attr in a.Attributes)
+                        {
+                            if (attr.Name.Equals("cpassword"))
                             {
-                                XmlNodeList a = xmlDoc.GetElementsByTagName("Properties");
-                                
-                                foreach (XmlNode b in a)
-                                {
-                                    if (b.Name.Equals("DefaultPassword"))
-                                    {
-                                        cPassword += "," + b.Value;
-                                    }
-                                    if (b.Name.Equals("DefaultUsername"))
-                                    {
-                                        UserName += "," + b.Value;
-                                    }
-                                }
+                                cPassword = attr.Value;
                             }
-                            else
+                            if (attr.Name.Equals("accountName"))
                             {
-                                // Drives.xml
-                                XmlNode a = xmlDoc.SelectSingleNode("/Drives/Drive/Properties");
-                                XmlNode b = xmlDoc.SelectSingleNode("/Drives/Drive");
-                                foreach (XmlAttribute attr in a.Attributes)
-                                {
-                                    if (attr.Name.Equals("cpassword"))
-                                    {
-                                        cPassword = attr.Value;
-                                    }
-                                    if (attr.Name.Equals("username"))
-                                    {
-                                        UserName = attr.Value;
-                                    }
-                                }
-                                foreach (XmlAttribute attr in b.Attributes)
-                                {
-                                    if (attr.Name.Equals("changed"))
-                                    {
-                                        Changed = attr.Value;
-                                    }
-                                }
-
+                                UserName = attr.Value;
                             }
-
-                            if (UserName.Equals(""))
+                        }
+                        foreach (XmlAttribute attr in b.Attributes)
+                        {
+                            if (attr.Name.Equals("changed"))
                             {
-                                UserName = "[BLANK]";
+                                Changed = attr.Value;
                             }
-                            
-                            if (NewName.Equals(""))
-                            {
-                                NewName = "[BLANK]";
-                            }
-
-                           
-                            if (cPassword.Equals(""))
-                            {
-                                cPassword = "[BLANK]";
-                            }
-                            else
-                            {
-                                if (!file.Contains("Registry.xml"))
-                                {
-                                    cPassword = DecryptGPP(cPassword);
-                                }
-                            }
-
-                            if (Changed.Equals(""))
-                            {
-                                Changed = "[BLANK]";
-                            }
-
-
-                            Console.WriteLine("UserName: {0}", UserName);
-                            Console.WriteLine("NewName: {0}", NewName);
-                            Console.WriteLine("cPassword: {0}", cPassword);
-                            Console.WriteLine("Changed: {0}", Changed);
                         }
 
-                       
                     }
+                    else if (file.Contains("Scheduledtasks.xml"))
+                    {
+                        XmlNode a = xmlDoc.SelectSingleNode("/ScheduledTasks/Task/Properties");
+                        XmlNode b = xmlDoc.SelectSingleNode("/ScheduledTasks/Task");
+                        foreach (XmlAttribute attr in a.Attributes)
+                        {
+                            if (attr.Name.Equals("cpassword"))
+                            {
+                                cPassword = attr.Value;
+                            }
+                            if (attr.Name.Equals("runAs"))
+                            {
+                                UserName = attr.Value;
+                            }
+                        }
+                        foreach (XmlAttribute attr in b.Attributes)
+                        {
+                            if (attr.Name.Equals("changed"))
+                            {
+                                Changed = attr.Value;
+                            }
+                        }
+
+                    }
+                    else if (file.Contains("DataSources.xml"))
+                    {
+                        XmlNode a = xmlDoc.SelectSingleNode("/DataSources/DataSource/Properties");
+                        XmlNode b = xmlDoc.SelectSingleNode("/DataSources/DataSource");
+                        foreach (XmlAttribute attr in a.Attributes)
+                        {
+                            if (attr.Name.Equals("cpassword"))
+                            {
+                                cPassword = attr.Value;
+                            }
+                            if (attr.Name.Equals("username"))
+                            {
+                                UserName = attr.Value;
+                            }
+                        }
+                        foreach (XmlAttribute attr in b.Attributes)
+                        {
+                            if (attr.Name.Equals("changed"))
+                            {
+                                Changed = attr.Value;
+                            }
+                        }
+                    }
+                    else if (file.Contains("Printers.xml"))
+                    {
+                        XmlNode a = xmlDoc.SelectSingleNode("/Printers/SharedPrinter/Properties");
+                        XmlNode b = xmlDoc.SelectSingleNode("/Printers/SharedPrinter");
+                        foreach (XmlAttribute attr in a.Attributes)
+                        {
+                            if (attr.Name.Equals("cpassword"))
+                            {
+                                cPassword = attr.Value;
+                            }
+                            if (attr.Name.Equals("username"))
+                            {
+                                UserName = attr.Value;
+                            }
+                        }
+                        foreach (XmlAttribute attr in b.Attributes)
+                        {
+                            if (attr.Name.Equals("changed"))
+                            {
+                                Changed = attr.Value;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Drives.xml
+                        XmlNode a = xmlDoc.SelectSingleNode("/Drives/Drive/Properties");
+                        XmlNode b = xmlDoc.SelectSingleNode("/Drives/Drive");
+                        foreach (XmlAttribute attr in a.Attributes)
+                        {
+                            if (attr.Name.Equals("cpassword"))
+                            {
+                                cPassword = attr.Value;
+                            }
+                            if (attr.Name.Equals("username"))
+                            {
+                                UserName = attr.Value;
+                            }
+                        }
+                        foreach (XmlAttribute attr in b.Attributes)
+                        {
+                            if (attr.Name.Equals("changed"))
+                            {
+                                Changed = attr.Value;
+                            }
+                        }
+
+                    }
+
+                    if (UserName.Equals(""))
+                    {
+                        UserName = "[BLANK]";
+                    }
+
+                    if (NewName.Equals(""))
+                    {
+                        NewName = "[BLANK]";
+                    }
+
+
+                    if (cPassword.Equals(""))
+                    {
+                        cPassword = "[BLANK]";
+                    }
+                    else
+                    {
+                        cPassword = DecryptGPP(cPassword);
+                    }
+
+                    if (Changed.Equals(""))
+                    {
+                        Changed = "[BLANK]";
+                    }
+
+
+                    Console.WriteLine("UserName: {0}", UserName);
+                    Console.WriteLine("NewName: {0}", NewName);
+                    Console.WriteLine("cPassword: {0}", cPassword);
+                    Console.WriteLine("Changed: {0}", Changed);
                 }
-                
-                
-               
             }
             catch (Exception ex)
             {
@@ -1079,230 +1065,230 @@ namespace SharpUp
 
                 if (DNSDomain.Length > 1)
                 {
-                        List<String> files = FindFiles("\\\\" + DNSDomain + "\\SYSVOL", "*.xml");
+                    List<String> files = FindFiles("\\\\" + DNSDomain + "\\SYSVOL", "*.xml");
 
-                        // files will contain 
-                        foreach (string file in files)
+                    // files will contain 
+                    foreach (string file in files)
+                    {
+                        //Console.WriteLine("\r\n{0}", file);
+                        if (file.Contains("Registry.xml") || file.Contains("Groups.xml") || file.Contains("Services.xml") || file.Contains("ScheduledTasks.xml") || file.Contains("DataSources.xml") || file.Contains("Printers.xml") || file.Contains("Drives.xml"))
                         {
-                            //Console.WriteLine("\r\n{0}", file);
-                            if (file.Contains("Registry.xml") || file.Contains("Groups.xml") || file.Contains("Services.xml") || file.Contains("ScheduledTasks.xml") || file.Contains("DataSources.xml") || file.Contains("Printers.xml") || file.Contains("Drives.xml"))
+                            XmlDocument xmlDoc = new XmlDocument();
+                            xmlDoc.Load(file);
+
+                            //Console.WriteLine("\r\n{0}", xmlDoc.InnerXml);
+
+                            string cPassword = "";
+                            string UserName = "";
+                            string NewName = "";
+                            string Changed = "";
+
+                            if (xmlDoc.InnerXml.Contains("cpassword"))
                             {
-                                XmlDocument xmlDoc = new XmlDocument();
-                                xmlDoc.Load(file);
-
-                                //Console.WriteLine("\r\n{0}", xmlDoc.InnerXml);
-
-                                string cPassword = "";
-                                string UserName = "";
-                                string NewName = "";
-                                string Changed = "";
-
-                                if (xmlDoc.InnerXml.Contains("cpassword"))
+                                Console.WriteLine("\r\n{0}", file);
+                                if (file.Contains("Groups.xml"))
                                 {
-                                    Console.WriteLine("\r\n{0}", file);
-                                    if (file.Contains("Groups.xml"))
+                                    XmlNode a = xmlDoc.SelectSingleNode("/Groups/User/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/Groups/User");
+                                    foreach (XmlAttribute attr in a.Attributes)
                                     {
-                                        XmlNode a = xmlDoc.SelectSingleNode("/Groups/User/Properties");
-                                        XmlNode b = xmlDoc.SelectSingleNode("/Groups/User");
-                                        foreach (XmlAttribute attr in a.Attributes)
+                                        if (attr.Name.Equals("cpassword"))
                                         {
-                                            if (attr.Name.Equals("cpassword"))
-                                            {
-                                                cPassword = attr.Value;
-                                            }
-                                            if (attr.Name.Equals("userName"))
-                                            {
-                                                UserName = attr.Value;
-                                            }
-                                            if (attr.Name.Equals("newName"))
-                                            {
-                                                NewName = attr.Value;
-                                            }
+                                            cPassword = attr.Value;
                                         }
-                                        foreach (XmlAttribute attr in b.Attributes)
+                                        if (attr.Name.Equals("userName"))
                                         {
-                                            if (attr.Name.Equals("changed"))
-                                            {
-                                                Changed = attr.Value;
-                                            }
+                                            UserName = attr.Value;
                                         }
-                                        //Console.WriteLine("\r\nA{0}", a.Attributes[0].Value);
-                                    }
-                                    else if (file.Contains("Services.xml"))
-                                    {
-                                        XmlNode a = xmlDoc.SelectSingleNode("/NTServices/NTService/Properties");
-                                        XmlNode b = xmlDoc.SelectSingleNode("/NTServices/NTService");
-                                        foreach (XmlAttribute attr in a.Attributes)
+                                        if (attr.Name.Equals("newName"))
                                         {
-                                            if (attr.Name.Equals("cpassword"))
-                                            {
-                                                cPassword = attr.Value;
-                                            }
-                                            if (attr.Name.Equals("accountName"))
-                                            {
-                                                UserName = attr.Value;
-                                            }
-                                        }
-                                        foreach (XmlAttribute attr in b.Attributes)
-                                        {
-                                            if (attr.Name.Equals("changed"))
-                                            {
-                                                Changed = attr.Value;
-                                            }
-                                        }
-
-                                    }
-                                    else if (file.Contains("ScheduledTasks.xml"))
-                                    {
-                                        XmlNode a = xmlDoc.SelectSingleNode("/ScheduledTasks/Task/Properties");
-                                        XmlNode b = xmlDoc.SelectSingleNode("/ScheduledTasks/Task");
-                                        foreach (XmlAttribute attr in a.Attributes)
-                                        {
-                                            if (attr.Name.Equals("cpassword"))
-                                            {
-                                                cPassword = attr.Value;
-                                            }
-                                            if (attr.Name.Equals("runAs"))
-                                            {
-                                                UserName = attr.Value;
-                                            }
-                                        }
-                                        foreach (XmlAttribute attr in b.Attributes)
-                                        {
-                                            if (attr.Name.Equals("changed"))
-                                            {
-                                                Changed = attr.Value;
-                                            }
-                                        }
-
-                                    }
-                                    else if (file.Contains("DataSources.xml"))
-                                    {
-                                        XmlNode a = xmlDoc.SelectSingleNode("/DataSources/DataSource/Properties");
-                                        XmlNode b = xmlDoc.SelectSingleNode("/DataSources/DataSource");
-                                        foreach (XmlAttribute attr in a.Attributes)
-                                        {
-                                            if (attr.Name.Equals("cpassword"))
-                                            {
-                                                cPassword = attr.Value;
-                                            }
-                                            if (attr.Name.Equals("username"))
-                                            {
-                                                UserName = attr.Value;
-                                            }
-                                        }
-                                        foreach (XmlAttribute attr in b.Attributes)
-                                        {
-                                            if (attr.Name.Equals("changed"))
-                                            {
-                                                Changed = attr.Value;
-                                            }
+                                            NewName = attr.Value;
                                         }
                                     }
-                                    else if (file.Contains("Printers.xml"))
+                                    foreach (XmlAttribute attr in b.Attributes)
                                     {
-                                        XmlNode a = xmlDoc.SelectSingleNode("/Printers/SharedPrinter/Properties");
-                                        XmlNode b = xmlDoc.SelectSingleNode("/Printers/SharedPrinter");
-                                        foreach (XmlAttribute attr in a.Attributes)
+                                        if (attr.Name.Equals("changed"))
                                         {
-                                            if (attr.Name.Equals("cpassword"))
-                                            {
-                                                cPassword = attr.Value;
-                                            }
-                                            if (attr.Name.Equals("username"))
-                                            {
-                                                UserName = attr.Value;
-                                            }
-                                        }
-                                        foreach (XmlAttribute attr in b.Attributes)
-                                        {
-                                            if (attr.Name.Equals("changed"))
-                                            {
-                                                Changed = attr.Value;
-                                            }
+                                            Changed = attr.Value;
                                         }
                                     }
-                                    else if (file.Contains("Registry.xml"))
+                                    //Console.WriteLine("\r\nA{0}", a.Attributes[0].Value);
+                                }
+                                else if (file.Contains("Services.xml"))
+                                {
+                                    XmlNode a = xmlDoc.SelectSingleNode("/NTServices/NTService/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/NTServices/NTService");
+                                    foreach (XmlAttribute attr in a.Attributes)
                                     {
-                                        XmlNodeList a = xmlDoc.GetElementsByTagName("Properties");
-
-                                        foreach (XmlNode b in a)
+                                        if (attr.Name.Equals("cpassword"))
                                         {
-                                            if (b.Name.Equals("DefaultPassword"))
-                                            {
-                                                cPassword += "," + b.Value;
-                                            }
-                                            if (b.Name.Equals("DefaultUsername"))
-                                            {
-                                                UserName += "," + b.Value;
-                                            }
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("accountName"))
+                                        {
+                                            UserName = attr.Value;
                                         }
                                     }
-                                    else
+                                    foreach (XmlAttribute attr in b.Attributes)
                                     {
-                                        // Drives.xml
-                                        XmlNode a = xmlDoc.SelectSingleNode("/Drives/Drive/Properties");
-                                        XmlNode b = xmlDoc.SelectSingleNode("/Drives/Drive");
-                                        foreach (XmlAttribute attr in a.Attributes)
+                                        if (attr.Name.Equals("changed"))
                                         {
-                                            if (attr.Name.Equals("cpassword"))
-                                            {
-                                                cPassword = attr.Value;
-                                            }
-                                            if (attr.Name.Equals("username"))
-                                            {
-                                                UserName = attr.Value;
-                                            }
-                                        }
-                                        foreach (XmlAttribute attr in b.Attributes)
-                                        {
-                                            if (attr.Name.Equals("changed"))
-                                            {
-                                                Changed = attr.Value;
-                                            }
-                                        }
-
-                                    }
-
-                                    if (UserName.Equals(""))
-                                    {
-                                        UserName = "[BLANK]";
-                                    }
-
-                                    if (NewName.Equals(""))
-                                    {
-                                        NewName = "[BLANK]";
-                                    }
-
-
-                                    if (cPassword.Equals(""))
-                                    {
-                                        cPassword = "[BLANK]";
-                                    }
-                                    else
-                                    {
-                                        if (!file.Contains("Registry.xml"))
-                                        {
-                                            cPassword = DecryptGPP(cPassword);
+                                            Changed = attr.Value;
                                         }
                                     }
 
-                                    if (Changed.Equals(""))
+                                }
+                                else if (file.Contains("ScheduledTasks.xml"))
+                                {
+                                    XmlNode a = xmlDoc.SelectSingleNode("/ScheduledTasks/Task/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/ScheduledTasks/Task");
+                                    foreach (XmlAttribute attr in a.Attributes)
                                     {
-                                        Changed = "[BLANK]";
+                                        if (attr.Name.Equals("cpassword"))
+                                        {
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("runAs"))
+                                        {
+                                            UserName = attr.Value;
+                                        }
+                                    }
+                                    foreach (XmlAttribute attr in b.Attributes)
+                                    {
+                                        if (attr.Name.Equals("changed"))
+                                        {
+                                            Changed = attr.Value;
+                                        }
                                     }
 
+                                }
+                                else if (file.Contains("DataSources.xml"))
+                                {
+                                    XmlNode a = xmlDoc.SelectSingleNode("/DataSources/DataSource/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/DataSources/DataSource");
+                                    foreach (XmlAttribute attr in a.Attributes)
+                                    {
+                                        if (attr.Name.Equals("cpassword"))
+                                        {
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("username"))
+                                        {
+                                            UserName = attr.Value;
+                                        }
+                                    }
+                                    foreach (XmlAttribute attr in b.Attributes)
+                                    {
+                                        if (attr.Name.Equals("changed"))
+                                        {
+                                            Changed = attr.Value;
+                                        }
+                                    }
+                                }
+                                else if (file.Contains("Printers.xml"))
+                                {
+                                    XmlNode a = xmlDoc.SelectSingleNode("/Printers/SharedPrinter/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/Printers/SharedPrinter");
+                                    foreach (XmlAttribute attr in a.Attributes)
+                                    {
+                                        if (attr.Name.Equals("cpassword"))
+                                        {
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("username"))
+                                        {
+                                            UserName = attr.Value;
+                                        }
+                                    }
+                                    foreach (XmlAttribute attr in b.Attributes)
+                                    {
+                                        if (attr.Name.Equals("changed"))
+                                        {
+                                            Changed = attr.Value;
+                                        }
+                                    }
+                                }
+                                else if (file.Contains("Registry.xml"))
+                                {
+                                    XmlNodeList a = xmlDoc.GetElementsByTagName("Properties");
 
-                                    Console.WriteLine("UserName: {0}", UserName);
-                                    Console.WriteLine("NewName: {0}", NewName);
-                                    Console.WriteLine("cPassword: {0}", cPassword);
-                                    Console.WriteLine("Changed: {0}", Changed);
+                                    foreach (XmlNode b in a)
+                                    {
+                                        if (b.Name.Equals("DefaultPassword"))
+                                        {
+                                            cPassword += "," + b.Value;
+                                        }
+                                        if (b.Name.Equals("DefaultUsername"))
+                                        {
+                                            UserName += "," + b.Value;
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    // Drives.xml
+                                    XmlNode a = xmlDoc.SelectSingleNode("/Drives/Drive/Properties");
+                                    XmlNode b = xmlDoc.SelectSingleNode("/Drives/Drive");
+                                    foreach (XmlAttribute attr in a.Attributes)
+                                    {
+                                        if (attr.Name.Equals("cpassword"))
+                                        {
+                                            cPassword = attr.Value;
+                                        }
+                                        if (attr.Name.Equals("username"))
+                                        {
+                                            UserName = attr.Value;
+                                        }
+                                    }
+                                    foreach (XmlAttribute attr in b.Attributes)
+                                    {
+                                        if (attr.Name.Equals("changed"))
+                                        {
+                                            Changed = attr.Value;
+                                        }
+                                    }
+
+                                }
+
+                                if (UserName.Equals(""))
+                                {
+                                    UserName = "[BLANK]";
+                                }
+
+                                if (NewName.Equals(""))
+                                {
+                                    NewName = "[BLANK]";
                                 }
 
 
+                                if (cPassword.Equals(""))
+                                {
+                                    cPassword = "[BLANK]";
+                                }
+                                else
+                                {
+                                    if (!file.Contains("Registry.xml"))
+                                    {
+                                        cPassword = DecryptGPP(cPassword);
+                                    }
+                                }
+
+                                if (Changed.Equals(""))
+                                {
+                                    Changed = "[BLANK]";
+                                }
+
+
+                                Console.WriteLine("UserName: {0}", UserName);
+                                Console.WriteLine("NewName: {0}", NewName);
+                                Console.WriteLine("cPassword: {0}", cPassword);
+                                Console.WriteLine("Changed: {0}", Changed);
                             }
+
+
                         }
-                    
+                    }
+
                 }
                 else
                 {
@@ -1318,42 +1304,61 @@ namespace SharpUp
             }
         }
 
-        public static void PrivescChecks()
+        public static void PrivescChecks(bool auditMode)
         {
             bool isHighIntegrity = IsHighIntegrity();
             bool isLocalAdmin = IsLocalAdmin();
+            bool shouldQuit = false;
 
-            if (IsHighIntegrity())
+            if (isHighIntegrity)
             {
                 Console.WriteLine("\r\n[*] Already in high integrity, no need to privesc!");
+                shouldQuit = true;
             }
             else if (!isHighIntegrity && isLocalAdmin)
             {
                 Console.WriteLine("\r\n[*] In medium integrity but user is a local administrator- UAC can be bypassed.");
+                shouldQuit = true;
             }
-            else
+
+            // if already admin we can quit without running all checks
+            if (shouldQuit)
             {
-                GetModifiableServices();
-                GetModifiableServiceBinaries();
-                GetAlwaysInstallElevated();
-                GetPathHijacks();
-                GetModifiableRegistryAutoRuns();
-                GetSpecialTokenGroupPrivs();
-                GetUnattendedInstallFiles();
-                GetMcAfeeSitelistFiles();
-                GetCachedGPPPassword();
-                GetRegAutoLogon();
-                GetGPPPassword();
+                if (!auditMode)
+                {
+                    Console.WriteLine("\r\n[*] Quitting now, re-run with \"audit\" argument to run all checks anyway (audit mode).");
+                    return;
+                }
+                else
+                {
+                    // except if auditMode has explictly been asked
+                    Console.WriteLine("\r\n[*] Audit mode: running all checks anyway.");
+                }
             }
+
+            GetModifiableServices();
+            GetModifiableServiceBinaries();
+            GetAlwaysInstallElevated();
+            GetPathHijacks();
+            GetModifiableRegistryAutoRuns();
+            GetSpecialTokenGroupPrivs();
+            GetUnattendedInstallFiles();
+            GetMcAfeeSitelistFiles();
+            GetCachedGPPPassword();
+            GetRegAutoLogon();
+            GetGPPPassword();
+            
         }
 
         static void Main(string[] args)
         {
+            bool auditMode = args.Contains("audit", StringComparer.CurrentCultureIgnoreCase);
+
             var watch = System.Diagnostics.Stopwatch.StartNew();
 
             Console.WriteLine("\r\n=== SharpUp: Running Privilege Escalation Checks ===");
 
-            PrivescChecks();
+            PrivescChecks(auditMode);
 
             watch.Stop();
             Console.WriteLine(String.Format("\r\n\r\n[*] Completed Privesc Checks in {0} seconds\r\n", watch.ElapsedMilliseconds / 1000));
