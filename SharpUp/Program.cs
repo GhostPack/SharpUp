@@ -1023,32 +1023,30 @@ namespace SharpUp
         {
             bool isHighIntegrity = IsHighIntegrity();
             bool isLocalAdmin = IsLocalAdmin();
-            bool shouldQuit = false;
 
             if (isHighIntegrity)
             {
                 Console.WriteLine("\r\n[*] Already in high integrity, no need to privesc!");
-                shouldQuit = true;
+                if (auditMode)
+                {
+                    Console.WriteLine("\r\n[X] Cannot run audit mode within an high integrity process.");
+                }
+                Console.WriteLine("\r\n[*] To run all checks anyway (audit mode), re-run as medium integrity, and with the \"audit\" argument.");
+                return;
             }
             else if (!isHighIntegrity && isLocalAdmin)
             {
                 Console.WriteLine("\r\n[*] In medium integrity but user is a local administrator- UAC can be bypassed.");
-                shouldQuit = true;
-            }
-
-            // if already admin we can quit without running all checks
-            if (shouldQuit)
-            {
-                if (!auditMode)
+                if(!auditMode)
                 {
-                    Console.WriteLine("\r\n[*] Quitting now, re-run with \"audit\" argument to run all checks anyway (audit mode).");
+                    Console.WriteLine("\r\n[*] To run all checks anyway (audit mode), re-run with the \"audit\" argument.");
                     return;
                 }
-                else
-                {
-                    // except if auditMode has explictly been asked
-                    Console.WriteLine("\r\n[*] Audit mode: running all checks anyway.");
-                }
+            }
+
+            if (auditMode)
+            {
+                Console.WriteLine("\r\n[*] Audit mode: running all checks anyway.");
             }
 
             GetModifiableServices();
