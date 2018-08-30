@@ -841,19 +841,18 @@ namespace SharpUp
             {
                 Console.WriteLine("\r\n\r\n=== Unattended Install Files ===\r\n");
 
-                string drive = System.Environment.GetEnvironmentVariable("SystemDrive");
-
+                string windir = System.Environment.GetEnvironmentVariable("windir");
                 string[] SearchLocations =
                 {
-                    String.Format("{0}\\sysprep\\sysprep.xml", drive),
-                    String.Format("{0}\\sysprep\\sysprep.inf", drive),
-                    String.Format("{0}\\sysprep.inf", drive),
-                    String.Format("{0}\\Panther\\Unattended.xml", drive),
-                    String.Format("{0}\\Panther\\Unattend.xml", drive),
-                    String.Format("{0}\\Panther\\Unattend\\Unattend.xml", drive),
-                    String.Format("{0}\\Panther\\Unattend\\Unattended.xml", drive),
-                    String.Format("{0}\\System32\\Sysprep\\unattend.xml", drive),
-                    String.Format("{0}\\System32\\Sysprep\\Panther\\unattend.xml", drive)
+                    String.Format("{0}\\sysprep\\sysprep.xml", windir),
+                    String.Format("{0}\\sysprep\\sysprep.inf", windir),
+                    String.Format("{0}\\sysprep.inf", windir),
+                    String.Format("{0}\\Panther\\Unattended.xml", windir),
+                    String.Format("{0}\\Panther\\Unattend.xml", windir),
+                    String.Format("{0}\\Panther\\Unattend\\Unattend.xml", windir),
+                    String.Format("{0}\\Panther\\Unattend\\Unattended.xml", windir),
+                    String.Format("{0}\\System32\\Sysprep\\unattend.xml", windir),
+                    String.Format("{0}\\System32\\Sysprep\\Panther\\unattend.xml", windir)
                 };
 
                 foreach (string SearchLocation in SearchLocations)
