@@ -1242,7 +1242,7 @@ namespace SharpUp
                 }
                 else
                 {
-                    System.Console.WriteLine("Usage: SharpView.exe WriteRegistryAutorun <service>");
+                    System.Console.WriteLine("Usage: SharpView.exe WriteDacl <service>");
 
                 }
             }
