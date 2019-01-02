@@ -656,26 +656,29 @@ namespace SharpUp
 
                     foreach (System.Security.AccessControl.CommonAce ace in dacl)
                     {
-                        if (identity.Groups.Contains(ace.SecurityIdentifier))
+                        if (AceType.AccessAllowed == ace.AceType) //Filter allowed ace
                         {
-                            ServiceAccessRights serviceRights = (ServiceAccessRights)ace.AccessMask;
-                            foreach (ServiceAccessRights ModifyRight in ModifyRights)
+                            if (identity.Groups.Contains(ace.SecurityIdentifier))
                             {
-                                if ((ModifyRight & serviceRights) == ModifyRight)
+                                ServiceAccessRights serviceRights = (ServiceAccessRights)ace.AccessMask;
+                                foreach (ServiceAccessRights ModifyRight in ModifyRights)
                                 {
-                                    ManagementObjectSearcher wmiData = new ManagementObjectSearcher(@"root\cimv2", String.Format("SELECT * FROM win32_service WHERE Name LIKE '{0}'", sc.ServiceName));
-                                    ManagementObjectCollection data = wmiData.Get();
-
-                                    foreach (ManagementObject result in data)
+                                    if ((ModifyRight & serviceRights) == ModifyRight)
                                     {
-                                        Console.WriteLine("  Name             : {0}", result["Name"]);
-                                        Console.WriteLine("  DisplayName      : {0}", result["DisplayName"]);
-                                        Console.WriteLine("  Description      : {0}", result["Description"]);
-                                        Console.WriteLine("  State            : {0}", result["State"]);
-                                        Console.WriteLine("  StartMode        : {0}", result["StartMode"]);
-                                        Console.WriteLine("  PathName         : {0}", result["PathName"]);
+                                        ManagementObjectSearcher wmiData = new ManagementObjectSearcher(@"root\cimv2", String.Format("SELECT * FROM win32_service WHERE Name LIKE '{0}'", sc.ServiceName));
+                                        ManagementObjectCollection data = wmiData.Get();
+
+                                        foreach (ManagementObject result in data)
+                                        {
+                                            Console.WriteLine("  Name             : {0}", result["Name"]);
+                                            Console.WriteLine("  DisplayName      : {0}", result["DisplayName"]);
+                                            Console.WriteLine("  Description      : {0}", result["Description"]);
+                                            Console.WriteLine("  State            : {0}", result["State"]);
+                                            Console.WriteLine("  StartMode        : {0}", result["StartMode"]);
+                                            Console.WriteLine("  PathName         : {0}", result["PathName"]);
+                                        }
+                                        break;
                                     }
-                                    break;
                                 }
                             }
                         }
