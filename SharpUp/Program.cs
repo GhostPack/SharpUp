@@ -842,19 +842,18 @@ namespace SharpUp
             {
                 Console.WriteLine("\r\n\r\n=== Unattended Install Files ===\r\n");
 
-                string drive = System.Environment.GetEnvironmentVariable("SystemDrive");
-
+                string windir = System.Environment.GetEnvironmentVariable("windir");
                 string[] SearchLocations =
                 {
-                    String.Format("{0}\\sysprep\\sysprep.xml", drive),
-                    String.Format("{0}\\sysprep\\sysprep.inf", drive),
-                    String.Format("{0}\\sysprep.inf", drive),
-                    String.Format("{0}\\Panther\\Unattended.xml", drive),
-                    String.Format("{0}\\Panther\\Unattend.xml", drive),
-                    String.Format("{0}\\Panther\\Unattend\\Unattend.xml", drive),
-                    String.Format("{0}\\Panther\\Unattend\\Unattended.xml", drive),
-                    String.Format("{0}\\System32\\Sysprep\\unattend.xml", drive),
-                    String.Format("{0}\\System32\\Sysprep\\Panther\\unattend.xml", drive)
+                    String.Format("{0}\\sysprep\\sysprep.xml", windir),
+                    String.Format("{0}\\sysprep\\sysprep.inf", windir),
+                    String.Format("{0}\\sysprep.inf", windir),
+                    String.Format("{0}\\Panther\\Unattended.xml", windir),
+                    String.Format("{0}\\Panther\\Unattend.xml", windir),
+                    String.Format("{0}\\Panther\\Unattend\\Unattend.xml", windir),
+                    String.Format("{0}\\Panther\\Unattend\\Unattended.xml", windir),
+                    String.Format("{0}\\System32\\Sysprep\\unattend.xml", windir),
+                    String.Format("{0}\\System32\\Sysprep\\Panther\\unattend.xml", windir)
                 };
 
                 foreach (string SearchLocation in SearchLocations)
@@ -1210,6 +1209,7 @@ namespace SharpUp
             GetMcAfeeSitelistFiles();
             GetCachedGPPPassword();
         }
+        
 
 
         //https://bytecode77.com/hacking/exploits/uac-bypass/slui-file-handler-hijack-privilege-escalation
@@ -1321,6 +1321,7 @@ namespace SharpUp
             }
         }
 
+
         static void Main(string[] args)
         {
             bool auditMode = args.Contains("audit", StringComparer.CurrentCultureIgnoreCase);
@@ -1335,21 +1336,28 @@ namespace SharpUp
                 }
                 else
                 {
-                    System.Console.WriteLine("Usage: SharpView.exe WriteRegistryAutorun <service>");
+                    System.Console.WriteLine("Usage: SharpView.exe WriteDacl <service>");
 
                 }
             }
             else if (args.Contains("WriteRegistry", StringComparer.CurrentCultureIgnoreCase))
             {
+
+                foreach (string arg in args)
+                {
+                    System.Console.WriteLine(arg);
+                }
+
                 if (args.Length == 5)
                 {
                     WriteRegistry(hiveBase: args[1], subKey: args[2], name: args[3], command: args[4]);
                 }
-
                 else
                 {
-                    System.Console.WriteLine("USage: SharpView.exe WriteRegistryAutorun <CurrentUser|LocalMachine> <subkey> <name> <command>");
+                    System.Console.WriteLine("USage: SharpUp.exe WriteRegistryAutorun <CurrentUser|LocalMachine> <subkey> <name> <command>");
                     System.Console.WriteLine("======Hint: Local Machine AutoRun Locations=====");
+               
+
                     string[] autorunLocations = new string[] {
                         @"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
                         @"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
@@ -1366,7 +1374,7 @@ namespace SharpUp
                     }
                 }
             }
-            else if (args.Contains("ListAutoruns", StringComparer.CurrentCultureIgnoreCase))
+              else if (args.Contains("ListAutoruns", StringComparer.CurrentCultureIgnoreCase))
             {
                 ListAutoruns();
             }
