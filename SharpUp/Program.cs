@@ -689,14 +689,14 @@ namespace SharpUp
         }
 
 
-        public static void CheckModifiableRegistryAccess()
+        public static void GetModifiableRegistryAccess()
         {
             // checks if the current user has rights to modify the given registry
 
             ServiceController[] scServices;
             scServices = ServiceController.GetServices();
 
-            // rights that signify modiable access
+            // rights that signify modifiable access
             // https://docs.microsoft.com/fr-fr/dotnet/api/system.security.accesscontrol.registryrights?view=netframework-4.8
             RegistryRights[] ModifyRights =
             {
@@ -1122,7 +1122,7 @@ namespace SharpUp
 
             GetModifiableServices();
             GetModifiableServiceBinaries();
-            CheckModifiableRegistryAccess();
+            GetModifiableRegistryAccess();
             GetAlwaysInstallElevated();
             GetPathHijacks();
             GetModifiableRegistryAutoRuns();
