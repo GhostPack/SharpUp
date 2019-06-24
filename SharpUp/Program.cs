@@ -391,7 +391,7 @@ namespace SharpUp
 
                     foreach (FileSystemAccessRule rule in rules)
                     {
-                        if (identity.Groups.Contains(rule.IdentityReference))
+                        if (identity.Groups.Contains(rule.IdentityReference) || rule.IdentityReference == identity.User)
                         {
                             foreach (FileSystemRights AccessRight in ModifyRights)
                             {
@@ -656,7 +656,7 @@ namespace SharpUp
 
                     foreach (System.Security.AccessControl.CommonAce ace in dacl)
                     {
-                        if (identity.Groups.Contains(ace.SecurityIdentifier))
+                        if (identity.Groups.Contains(ace.SecurityIdentifier) || ace.SecurityIdentifier == identity.User)
                         {
                             ServiceAccessRights serviceRights = (ServiceAccessRights)ace.AccessMask;
                             foreach (ServiceAccessRights ModifyRight in ModifyRights)
