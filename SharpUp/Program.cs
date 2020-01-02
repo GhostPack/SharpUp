@@ -486,6 +486,7 @@ namespace SharpUp
                             Console.WriteLine("  State            : {0}", result["State"]);
                             Console.WriteLine("  StartMode        : {0}", result["StartMode"]);
                             Console.WriteLine("  PathName         : {0}", result["PathName"]);
+                            Console.WriteLine();
                         }
                     }
                 }
@@ -693,6 +694,7 @@ namespace SharpUp
                                         Console.WriteLine("  State            : {0}", result["State"]);
                                         Console.WriteLine("  StartMode        : {0}", result["StartMode"]);
                                         Console.WriteLine("  PathName         : {0}", result["PathName"]);
+                                        Console.WriteLine();
                                     }
                                     break;
                                 }
@@ -1056,6 +1058,7 @@ namespace SharpUp
                     Console.WriteLine("NewName: {0}", NewName);
                     Console.WriteLine("cPassword: {0}", cPassword);
                     Console.WriteLine("Changed: {0}", Changed);
+                    Console.WriteLine();
                 }
             }
             catch (Exception ex)
