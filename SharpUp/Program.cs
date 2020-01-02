@@ -345,6 +345,11 @@ namespace SharpUp
 
         public static bool CheckModifiableAccess(string Path)
         {
+            return CheckModifiableAccess(Path, false);
+        }
+
+        public static bool CheckModifiableAccess(string Path, bool onlyFiles)
+        {
             // checks if the current user has rights to modify the given file/directory
             // adapted from https://stackoverflow.com/questions/1410127/c-sharp-test-if-user-has-write-access-to-a-folder/21996345#21996345
 
@@ -363,6 +368,20 @@ namespace SharpUp
                 FileSystemRights.CreateDirectories,
                 FileSystemRights.CreateFiles
             };
+
+            if (onlyFiles)
+            {
+                FileSystemRights[] ModifyRightsOnlyFiles =
+                {
+                    FileSystemRights.FullControl,
+                    FileSystemRights.Modify,
+                    FileSystemRights.TakeOwnership,
+                    FileSystemRights.Write,
+                    FileSystemRights.WriteData,
+                    FileSystemRights.CreateFiles
+                };
+                ModifyRights = ModifyRightsOnlyFiles;
+            }
 
             ArrayList paths = new ArrayList();
             paths.Add(Path);
@@ -685,6 +704,68 @@ namespace SharpUp
                 {
                     // Console.WriteLine("Exception: " + ex);
                 }
+            }
+        }
+
+        public static void GetUnquotedServices()
+        {
+            Console.WriteLine("\r\n\r\n=== Unquoted Vulnerable Services ===\r\n");
+
+            RegistryKey services = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services");
+            foreach (string subkey in services.GetSubKeyNames())
+            {
+                RegistryKey serviceKey = Registry.LocalMachine.OpenSubKey(string.Format(@"SYSTEM\CurrentControlSet\Services\{0}", subkey));
+                string path = ((string)serviceKey.GetValue("ImagePath", "")).Trim();
+                if (path != "" && !path.StartsWith("\"") && !path.StartsWith("'") && path.Substring(0, path.ToLower().IndexOf(".exe") + 4).Contains(" "))
+                {
+                    string startType = "Disabled";
+                    switch ((int)serviceKey.GetValue("Start", 0))
+                    {
+                        case 2:
+                            startType = "Automatic";
+                            break;
+                        case 3:
+                            startType = "Manual";
+                            break;
+                        case 4:
+                            startType = "Disabled";
+                            break;
+                        default:
+                            startType = "Unknown";
+                            break;
+                    }
+                    List<string> modPaths = new List<string>();
+                    string executable_path = path.Substring(0, path.ToLower().IndexOf(".exe") + 4);
+                    int num_spaces = executable_path.Split(' ').Length - 1;
+                    int lastFound = 0;
+                    for (int x = 0; x < num_spaces; ++x)
+                    {
+                        string new_path = path.Substring(0, path.ToLower().IndexOf(' ', lastFound));
+                        lastFound = path.ToLower().IndexOf(' ', lastFound) + 1;
+                        string check_path = new_path.Substring(0, new_path.LastIndexOf('\\')) + "\\";
+                        if (CheckModifiableAccess(check_path, true))
+                        {
+                            if (!modPaths.Contains(check_path))
+                            {
+                                modPaths.Add(new_path);
+                            }
+                        }
+                    }
+                    if (modPaths.Count != 0)
+                    {
+                        Console.WriteLine("  Name             : {0}", subkey);
+                        Console.WriteLine("  DisplayName      : {0}", serviceKey.GetValue("DisplayName", ""));
+                        Console.WriteLine("  Description      : {0}", serviceKey.GetValue("Description", ""));
+                        Console.WriteLine("  Path             : {0}", path);
+                        Console.WriteLine("  StartType        : {0}", startType);
+                        foreach (string modPath in modPaths)
+                        {
+                            Console.WriteLine("  HijackablePath   : {0}.exe", modPath);
+                        }
+                        Console.WriteLine();
+                    }
+                }
+
             }
         }
 
@@ -1053,6 +1134,7 @@ namespace SharpUp
 
             GetModifiableServices();
             GetModifiableServiceBinaries();
+            GetUnquotedServices();
             GetAlwaysInstallElevated();
             GetPathHijacks();
             GetModifiableRegistryAutoRuns();
