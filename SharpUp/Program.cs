@@ -747,7 +747,7 @@ namespace SharpUp
                         string check_path = new_path.Substring(0, new_path.LastIndexOf('\\')) + "\\";
                         if (CheckModifiableAccess(check_path, true))
                         {
-                            if (!modPaths.Contains(check_path))
+                            if (!modPaths.Contains(new_path))
                             {
                                 modPaths.Add(new_path);
                             }
