@@ -46,14 +46,17 @@
   <ItemGroup>
     <Compile Include="Checks\AlwaysInstallElevated.cs" />
     <Compile Include="Checks\CachedGPPPassword.cs" />
+    <Compile Include="Checks\DomainGPPPassword.cs" />
     <Compile Include="Checks\HijackablePaths.cs" />
-    <Compile Include="Checks\LocalAdmin.cs" />
     <Compile Include="Checks\McAfeeSitelistFiles.cs" />
     <Compile Include="Checks\ModifiableServiceBinaries.cs" />
+    <Compile Include="Checks\ModifiableServiceRegistryKeys.cs" />
     <Compile Include="Checks\ModifiableServices.cs" />
+    <Compile Include="Checks\RegistryAutoLogons.cs" />
     <Compile Include="Checks\RegistryAutoruns.cs" />
     <Compile Include="Checks\TokenPrivileges.cs" />
     <Compile Include="Checks\UnattendedInstallFiles.cs" />
+    <Compile Include="Checks\UnquotedServicePath.cs" />
     <Compile Include="Classes\VulnerabilityCheck.cs" />
     <Compile Include="Interfaces\IVulnerabilityCheck.cs" />
     <Compile Include="Native\Win32.cs" />

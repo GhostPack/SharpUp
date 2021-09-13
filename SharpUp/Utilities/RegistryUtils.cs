@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 
 namespace SharpUp.Utilities
@@ -108,5 +110,40 @@ namespace SharpUp.Utilities
                 return new string[0];
             }
         }
+
+        public static bool IsModifiableKey(RegistryKey key)
+        {
+            RegistryRights[] ModifyRights =
+            {
+                RegistryRights.ChangePermissions,
+                RegistryRights.FullControl,
+                RegistryRights.TakeOwnership,
+                RegistryRights.SetValue,
+                RegistryRights.WriteKey
+            };
+            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+
+            AuthorizationRuleCollection rules = key.GetAccessControl().GetAccessRules(true, true, typeof(System.Security.Principal.SecurityIdentifier));
+
+            foreach (RegistryAccessRule rule in rules)
+            {
+                if (identity.Groups.Contains(rule.IdentityReference) || rule.IdentityReference == identity.User)
+                {
+                    foreach (RegistryRights AccessRight in ModifyRights)
+                    {
+                        if ((AccessRight & rule.RegistryRights) == AccessRight)
+                        {
+                            if (rule.AccessControlType == AccessControlType.Allow)
+                            {
+                                return true;
+                            }
+
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
     }
 }

@@ -39,7 +39,11 @@ namespace SharpUp
                 else
                 {
                     // except if auditMode has explictly been asked
-                    Console.WriteLine($"\r\n[*] Audit mode: running additional {checks.Length} checks.");
+                    Console.WriteLine($"\r\n[*] Audit mode: running an additional {checks.Length} check(s).");
+                    if (isHighIntegrity)
+                    {
+                        Console.WriteLine("[*] Note: Running audit mode in high integrity will yield a large number of false positives.");
+                    }
                 }
             }
             
@@ -50,12 +54,18 @@ namespace SharpUp
             {
                 Thread vulnThread = new Thread(() =>
                 {
-                    VulnerabilityCheck c = (VulnerabilityCheck)Activator.CreateInstance(t);
-                    if (c.IsVulnerable())
+                    try
                     {
-                        mtx.WaitOne();
-                        vulnerableChecks.Add(c);
-                        mtx.ReleaseMutex();
+                        VulnerabilityCheck c = (VulnerabilityCheck)Activator.CreateInstance(t);
+                        if (c.IsVulnerable())
+                        {
+                            mtx.WaitOne();
+                            vulnerableChecks.Add(c);
+                            mtx.ReleaseMutex();
+                        }
+                    } catch (Exception ex)
+                    {
+                        Console.WriteLine("[X] Unhandled exception in {0}: {1}", t.Name, ex.Message);
                     }
                 });
                 vulnThread.Start();

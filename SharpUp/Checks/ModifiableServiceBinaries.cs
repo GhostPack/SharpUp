@@ -39,6 +39,7 @@ namespace SharpUp.Checks
             }
             catch (Exception ex)
             {
+                _details.Add($"[X] Exception: {ex.Message}");
             }
         }
     }

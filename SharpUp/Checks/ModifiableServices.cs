@@ -75,7 +75,8 @@ namespace SharpUp.Checks
 
                     foreach (System.Security.AccessControl.CommonAce ace in dacl)
                     {
-                        if (identity.Groups.Contains(ace.SecurityIdentifier))
+                        if ((identity.Groups.Contains(ace.SecurityIdentifier) || ace.SecurityIdentifier == identity.User) &&
+                            ace.AceType == AceType.AccessAllowed)
                         {
                             ServiceAccessRights serviceRights = (ServiceAccessRights)ace.AccessMask;
                             foreach (ServiceAccessRights ModifyRight in ModifyRights)
@@ -98,7 +99,7 @@ namespace SharpUp.Checks
                 }
                 catch (Exception ex)
                 {
-                    // Console.WriteLine("Exception: " + ex);
+                    _details.Add($"[X] Exception: {ex.Message}");
                 }
             }
         }
