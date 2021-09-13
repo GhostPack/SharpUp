@@ -44,8 +44,24 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Checks\AlwaysInstallElevated.cs" />
+    <Compile Include="Checks\CachedGPPPassword.cs" />
+    <Compile Include="Checks\HijackablePaths.cs" />
+    <Compile Include="Checks\LocalAdmin.cs" />
+    <Compile Include="Checks\McAfeeSitelistFiles.cs" />
+    <Compile Include="Checks\ModifiableServiceBinaries.cs" />
+    <Compile Include="Checks\ModifiableServices.cs" />
+    <Compile Include="Checks\RegistryAutoruns.cs" />
+    <Compile Include="Checks\TokenPrivileges.cs" />
+    <Compile Include="Checks\UnattendedInstallFiles.cs" />
+    <Compile Include="Classes\VulnerabilityCheck.cs" />
+    <Compile Include="Interfaces\IVulnerabilityCheck.cs" />
+    <Compile Include="Native\Win32.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utilities\FileUtils.cs" />
+    <Compile Include="Utilities\IdentityUtils.cs" />
+    <Compile Include="Utilities\RegistryUtils.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
