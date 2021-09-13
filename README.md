@@ -10,57 +10,41 @@ SharpUp is licensed under the BSD 3-Clause license.
 
 ## Usage
 
-    C:\Temp>SharpUp.exe
+```
+SharpUp.exe [audit] [check1] [check2]...
 
-    === SharpUp: Running Privilege Escalation Checks ===
+    audit   - Specifies whether or not to enable audit mode. If enabled, SharpUp will run vulenrability checks
+              regardless if the process is in high integrity or the user is in the local administrator's group.
+              If no checks are specified, audit will run all checks. Otherwise, each check following audit will
+              be ran.
 
+    check*  - The individual vulnerability check to be ran. Must be one of the following:
 
-    === Modifiable Services ===
+              - AlwaysInstallElevated
+              - CachedGPPPassword
+              - DomainGPPPassword
+              - HijackablePaths
+              - McAfeeSitelistFiles
+              - ModifiableServiceBinaries
+              - ModifiableServiceRegistryKeys
+              - ModifiableServices
+              - RegistryAutoLogons
+              - RegistryAutoruns
+              - TokenPrivileges
+              - UnattendedInstallFiles
+              - UnquotedServicePath
+            
 
-    Name             : VulnSvc
-    DisplayName      : VulnSvc
-    Description      :
-    State            : Stopped
-    StartMode        : Auto
-    PathName         : C:\Program Files\VulnSvc\VulnSvc.exe
+    Examples:
+        SharpUp.exe audit
+            -> Runs all vulnerability checks regardless of integrity level or group membership.
+        
+        SharpUp.exe HijackablePaths
+            -> Check only if there are modifiable paths in the user's %PATH% variable.
 
-
-    === Modifiable Service Binaries ===
-
-    Name             : VulnSvc2
-    DisplayName      : VulnSvc22
-    Description      :
-    State            : Stopped
-    StartMode        : Auto
-    PathName         : C:\VulnSvc2\VulnSvc2.exe
-
-
-    === AlwaysInstallElevated Registry Keys ===
-
-
-
-    === Modifiable Folders in %PATH% ===
-
-    Modifable %PATH% Folder  : C:\Go\bin
-
-
-    === Modifiable Registry Autoruns ===
-
-
-
-    === *Special* User Privileges ===
-
-
-
-    === Unattended Install Files ===
-
-
-
-    === McAfee Sitelist.xml Files ===
-
-
-
-    [*] Completed Privesc Checks in 11 seconds
+        SharpUp.exe audit HijackablePaths
+            -> Check only for modifiable paths in the user's %PATH% regardless of integrity level or group membership. 
+```
 
 ## Compile Instructions
 
@@ -77,3 +61,8 @@ SharpUp incorporates various code C# snippets and bits of PoCs found throughout 
 * [Rod Stephens' pattern for recursive file enumeration](http://csharphelper.com/blog/2015/06/find-files-that-match-multiple-patterns-in-c/)
 * [SwDevMan81's snippet for enumerating current token privileges](https://stackoverflow.com/questions/4349743/setting-size-of-token-privileges-luid-and-attributes-array-returned-by-gettokeni)
 * [Nikki Locke's code for querying service security descriptors](https://stackoverflow.com/questions/15771998/how-to-give-a-user-permission-to-start-and-stop-a-particular-service-using-c-sha/15796352#15796352)
+* [Raika](https://github.com/Raikia) for providing example unquoted service path search code.
+* [RemiEscourrou](https://github.com/RemiEscourrou) for contributing additional ACE checking code and example modifiable service registry key code.
+* [Coder666](https://github.com/Coder666) for adding ACE filtering code to filter only ACEs with access allowed.
+* [vysecurity](https://github.com/vysecurity) for providing Registry Auto Logon and Domain GPP Password example code.
+* [djhohnstein](https://github.com/djhohnstein) for merging in several outdated PRs and refactoring the entire code base.
