@@ -28,6 +28,7 @@ SharpUp.exe [audit] [check1] [check2]...
               - ModifiableServiceBinaries
               - ModifiableServiceRegistryKeys
               - ModifiableServices
+              - ProcessDLLHijack
               - RegistryAutoLogons
               - RegistryAutoruns
               - TokenPrivileges
