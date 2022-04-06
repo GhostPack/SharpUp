@@ -2,12 +2,10 @@
 using System;
 using static SharpUp.Utilities.RegistryUtils;
 using System.Diagnostics;
-using Microsoft.Win32;
 using System.Collections.Generic;
-using System.Linq;
 using static SharpUp.Utilities.FileUtils;
-using System.Runtime.InteropServices;
 using System.Security.Principal;
+using static SharpUp.Native.Win32;
 
 namespace SharpUp.Checks
 {
@@ -39,28 +37,22 @@ namespace SharpUp.Checks
             }
         }
 
-        [DllImport("advapi32.dll", SetLastError = true)]
-        private static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
-        [DllImport("kernel32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool CloseHandle(IntPtr hObject);
-
         public ProcessDLLHijack()
 		{
             // TODO: Take argements and add them to an array for scoping
             //string[] options = args;
 
             // Registry key where known DLLs are listed
-            RegistryKey keyname = Registry.LocalMachine.OpenSubKey(_regPath);
+            string[] keyname = GetRegSubkeys("HKLM", _regPath);
+
 
             // Create List for DLL values
             List<string> Dlls = new List<string>();
 
             //Get the value for each of the values and add it to the list
-            foreach (string valuename in keyname.GetValueNames())
+            foreach (string valuename in keyname)
             {
-                string value = (string)keyname.GetValue(valuename);
-                string dllname = value.ToLower();
+                string dllname = valuename.ToLower();
                 Dlls.Add(dllname);
             }
 
