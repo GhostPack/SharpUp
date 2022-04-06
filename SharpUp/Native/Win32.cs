@@ -39,6 +39,11 @@ namespace SharpUp.Native
             uint bufSize,
             out uint bufSizeNeeded);
 
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern bool OpenProcessToken(IntPtr ProcessHandle, uint DesiredAccess, out IntPtr TokenHandle);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CloseHandle(IntPtr hObject);
 
         // PInvoke structures/contants
         public const uint SE_GROUP_LOGON_ID = 0xC0000000; // from winnt.h
