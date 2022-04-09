@@ -13,7 +13,7 @@ using System.Security.AccessControl;
 namespace SharpUp.Checks
 {
     public class ProcessDLLHijack : VulnerabilityCheck
-	{
+    {
         private static string _regPath = "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\KnownDlls";
         
         // For future use
