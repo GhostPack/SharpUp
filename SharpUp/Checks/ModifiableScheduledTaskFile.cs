@@ -1,13 +1,8 @@
 using SharpUp.Classes;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Xml;
 using static SharpUp.Utilities.FileUtils;
-using System.Security.Principal;
-using static SharpUp.Native.Win32;
 using System.Security.AccessControl;
 
 namespace SharpUp.Checks
