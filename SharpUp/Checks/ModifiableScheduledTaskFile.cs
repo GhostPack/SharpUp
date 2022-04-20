@@ -11,47 +11,43 @@ namespace SharpUp.Checks
     {
         public ModifiableScheduledTaskFile()
         {
-            string varName = Environment.GetEnvironmentVariable("SystemRoot");
-            varName += IntPtr.Size == 8 ? "\\System32\\Tasks" : "\\SysWOW64\\Tasks";
-            string[] allfiles = Directory.GetFiles(varName);
+            string tasksDir = Environment.GetEnvironmentVariable("SystemRoot");
+            tasksDir += IntPtr.Size == 8 ? "\\System32\\Tasks" : "\\SysWOW64\\Tasks";
+            string[] allfiles = Directory.GetFiles(tasksDir);
 
-            // Warning for Program Files
-            Console.WriteLine("[!] Warning: File paths containing Program Files could be false positives. Please check manually to confirm.");
-            
             foreach (string file in allfiles)
             {
+                bool taskPerms = false;
+                bool binPerms = false;
                 // Check if task file is writable
-                bool taskperms = CheckAccess(file, FileSystemRights.Write);
-                if(taskperms == false)
-                {
-                    Console.WriteLine("[+] The current user has write permissions to {0}", file);
-                    Console.WriteLine();
-                }
+                taskPerms = CheckAccess(file, FileSystemRights.Write);
+
                 try
                 {
                     // Load XML document
                     XmlDocument xmlDocument = new XmlDocument();
                     xmlDocument.Load(file);
-
+                    // Get the task name 
+                    XmlNodeList task = xmlDocument.GetElementsByTagName("URI");
                     // Get the command (this is what will be executed) 
                     XmlNodeList command = xmlDocument.GetElementsByTagName("Command");
                     for (int i = 0; i < command.Count; i++)
                     {
                         string commandpath = command[i].InnerXml;
 
-                        // Check file permissions
-                        bool writeperms = CheckAccess(commandpath, FileSystemRights.Write);
-                        if(writeperms == false)
+                        // Check binary file permissions
+                        binPerms = CheckAccess(commandpath, FileSystemRights.Write);
+                        if (binPerms || taskPerms)
                         {
-                            string URIpath;
-                            // Get task name
-                            XmlNodeList task = xmlDocument.GetElementsByTagName("URI");
                             for (int a = 0; a < task.Count; a++)
                             {
+                                string URIpath = task[a].InnerXml;
                                 URIpath = task[a].InnerXml;
-                                Console.WriteLine("[+] Modifiable Task {0}", URIpath);
-                                Console.WriteLine("[+] Command executes {0}", commandpath);
-                                Console.WriteLine("\tReason : User can modify command binary.");
+                                Console.WriteLine("\tTask Name              : {0}", URIpath);
+                                Console.WriteLine("\tTask Path              : {0}", file);
+                                Console.WriteLine("\tCommand                : {0}", commandpath);
+                                Console.WriteLine("\tTask XML Modifiable    : {0}", taskPerms);
+                                Console.WriteLine("\tTask Binary Modifiable : {0}", binPerms);
                                 Console.WriteLine();
                             }
                         }

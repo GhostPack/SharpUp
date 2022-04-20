@@ -272,7 +272,7 @@ namespace SharpUp.Utilities
 
                 foreach (FileSystemAccessRule rule in rules)
                 {
-                    if (identity.Groups.Contains(rule.IdentityReference))
+                    if (identity.Groups.Contains(rule.IdentityReference) || identity.Owner.Equals(rule.IdentityReference))
                     {
                         if ((AccessRight & rule.FileSystemRights) == AccessRight)
                         {
