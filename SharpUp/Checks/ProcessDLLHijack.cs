@@ -9,7 +9,6 @@ using System.Security.Principal;
 using static SharpUp.Native.Win32;
 using System.Security.AccessControl;
 
-
 namespace SharpUp.Checks
 {
     public class ProcessDLLHijack : VulnerabilityCheck
@@ -39,19 +38,19 @@ namespace SharpUp.Checks
                 }
             }
         }
+
         public ProcessDLLHijack()
-		{
+		      {
             // TODO: Take argements and add them to an array for scoping
             //string[] options = args;
 
             // Registry key where known DLLs are listed
             string[] keyname = GetRegSubkeys("HKLM", _regPath);
 
-
             // Create List for DLL values
             List<string> Dlls = new List<string>();
 
-            //Get the value for each of the values and add it to the list
+            // Get the value for each of the values and add it to the list
             foreach (string valuename in keyname)
             {
                 string dllname = valuename.ToLower();
@@ -60,6 +59,7 @@ namespace SharpUp.Checks
 
             // Get all running processes
             Process[] processes = Process.GetProcesses();
+
             foreach (Process process in processes)
             {
                 // Try to check the modules loaded for the process
@@ -101,6 +101,7 @@ namespace SharpUp.Checks
                     // Output for when the current user doesn't have permissions for a process
                     // Console.WriteLine("[-] Access denied for {0} under PID {1}", process.ProcessName.ToString(), process.Id.ToString());
                     continue;
+
                 }
             }
         }
