@@ -74,7 +74,7 @@ namespace SharpUp.Checks
                         string filepath = module.FileName.ToLower();
                         bool writeperms = CheckAccess(filepath, FileSystemRights.Write);
                         // Exclude items that do not end with .dll, exclude known dlls, exclude items in c:\\windows, exclude files that do not have the correct permissions
-                        if (module.FileName.EndsWith(".dll") && !Dlls.Contains(modules) && !filepath.Contains("c:\\windows") && writeperms == false)
+                        if (module.FileName.EndsWith(".dll") && !Dlls.Contains(modules) && !filepath.Contains("c:\\windows") && writeperms == true)
                         {
                             if (filepath.Contains("c:\\program files"))
                             {
