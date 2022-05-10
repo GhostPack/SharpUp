@@ -269,10 +269,14 @@ namespace SharpUp.Utilities
             {
                 AuthorizationRuleCollection rules = Directory.GetAccessControl(Path).GetAccessRules(true, true, typeof(System.Security.Principal.SecurityIdentifier));
                 WindowsIdentity identity = WindowsIdentity.GetCurrent();
-
+                WindowsPrincipal principal = new WindowsPrincipal(identity);
                 foreach (FileSystemAccessRule rule in rules)
                 {
-                    if (identity.Groups.Contains(rule.IdentityReference))
+
+                    var ruleNtAccount = rule.IdentityReference.Translate(typeof(NTAccount));
+                    if (identity.Groups.Contains(rule.IdentityReference) ||
+                        principal.IsInRole(ruleNtAccount.Value) ||
+                        ruleNtAccount.Value == identity.Name)
                     {
                         if ((AccessRight & rule.FileSystemRights) == AccessRight)
                         {

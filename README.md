@@ -25,6 +25,7 @@ SharpUp.exe [audit] [check1] [check2]...
               - DomainGPPPassword
               - HijackablePaths
               - McAfeeSitelistFiles
+              - ModifiableScheduledTask
               - ModifiableServiceBinaries
               - ModifiableServiceRegistryKeys
               - ModifiableServices
