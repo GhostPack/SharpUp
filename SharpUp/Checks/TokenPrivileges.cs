@@ -51,6 +51,7 @@ namespace SharpUp.Checks
                     Marshal.FreeHGlobal(LuidPointer);
                 }
             }
+            Marshal.FreeHGlobal(TokenInformation);
         }
     }
 }
