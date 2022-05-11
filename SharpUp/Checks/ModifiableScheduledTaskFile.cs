@@ -63,7 +63,7 @@ namespace SharpUp.Checks
             }
             catch
             {
-                Console.WriteLine("[!] Modifialbe scheduled tasks were not evaluated due to permissions.");
+                Console.WriteLine("[!] Modifiable scheduled tasks were not evaluated due to permissions.");
             }
         }
     }
