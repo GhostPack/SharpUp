@@ -8,7 +8,7 @@ using static SharpUp.Utilities.IdentityUtils;
 
 namespace SharpUp
 {
-    class Program
+    public class Program
     {
         static bool auditMode = false;
         public static void PrivescChecks(Type[] checks)
@@ -157,7 +157,7 @@ SharpUp.exe [audit] [check1] [check2]...
             Console.WriteLine(string.Format(usageString, strCheck));
         }
 
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             if (args.Length == 0 || args[0] == "-h" || args[0] == "--help")
             {
