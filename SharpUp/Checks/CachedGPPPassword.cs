@@ -37,7 +37,8 @@ namespace SharpUp.Checks
                     {
                         continue; // uninteresting XML files, move to next
                     }
-                    if (ParseGPPPasswordFromXml(file, out GPPPassword result))
+                    GPPPassword result;
+                    if (ParseGPPPasswordFromXml(file, out result))
                     {
                         _isVulnerable = true;
                         _details.Add(result.ToString());
