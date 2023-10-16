@@ -53,7 +53,7 @@
     <Compile Include="Checks\ModifiableServiceBinaries.cs" />
     <Compile Include="Checks\ModifiableServiceRegistryKeys.cs" />
     <Compile Include="Checks\ModifiableServices.cs" />
-    <Compile Include="Checks\ProcessDllHijack.cs" />
+    <Compile Include="Checks\ProcessDLLHijack.cs" />
     <Compile Include="Checks\RegistryAutoLogons.cs" />
     <Compile Include="Checks\RegistryAutoruns.cs" />
     <Compile Include="Checks\TokenPrivileges.cs" />
