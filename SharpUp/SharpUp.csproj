@@ -59,6 +59,7 @@
     <Compile Include="Checks\TokenPrivileges.cs" />
     <Compile Include="Checks\UnattendedInstallFiles.cs" />
     <Compile Include="Checks\UnquotedServicePath.cs" />
+    <Compile Include="Checks\WSUSOverHTTP.cs" />
     <Compile Include="Classes\VulnerabilityCheck.cs" />
     <Compile Include="Interfaces\IVulnerabilityCheck.cs" />
     <Compile Include="Native\Win32.cs" />
