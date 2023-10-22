@@ -31,7 +31,8 @@ namespace SharpUp.Checks
                             file.Contains("Printers.xml") ||
                             file.Contains("Drives.xml"))
                         {
-                            if (ParseGPPPasswordFromXml(file, out GPPPassword result))
+                            GPPPassword result;
+                            if (ParseGPPPasswordFromXml(file, out result))
                             {
                                 _isVulnerable = true;
                                 _details.Add(result.ToString());
