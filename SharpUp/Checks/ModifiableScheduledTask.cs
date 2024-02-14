@@ -7,9 +7,9 @@ using System.Security.AccessControl;
 
 namespace SharpUp.Checks
 {
-    public class ModifiableScheduledTaskFile : VulnerabilityCheck
+    public class ModifiableScheduledTask : VulnerabilityCheck
     {
-        public ModifiableScheduledTaskFile()
+        public ModifiableScheduledTask()
         {
             try
             {
